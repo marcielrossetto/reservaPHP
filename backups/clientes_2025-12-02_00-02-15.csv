@@ -1,0 +1,352 @@
+id,nome,data,num_pessoas,horario,telefone,telefone2,tipo_evento,forma_pagamento,valor_rodizio,num_mesa,observacoes,obsCliente,data_emissao,status,confirmado,usuario_id,motivo_cancelamento
+62,"KHAUAN DA SILVA ROSSETTO",2018-09-13,12,20:00:00,2147483647,0,,,0,0,,,"2018-09-11 02:02:22",1,0,,
+64,joana,2018-09-13,23,23:34:00,234234,2147483647,casamento,individual,0,0,,,"2018-09-12 01:34:58",1,0,,
+65,"pedro de jesus",2024-10-31,28,04:03:23,21996565885,2199632258452,,,0,,"erterterter
+zxcv
+zxc
+vzxc
+vzxcvzxcvzxcvzxcvzxcvzxcvzxcvzxcvzxcv
+zxcv
+zxcv
+zxcv",,"2018-09-12 01:58:43",1,0,,
+66,marciel,2018-09-11,23,23:23:00,23234234,234234,casamento,outros,0,0,,,"2018-09-12 20:04:09",1,0,,
+68,marciel,2018-09-17,20,20:30:00,2147483647,0,aniversario,individual,0,0,,,"2018-09-17 00:41:00",1,0,,
+72,"KHAUAN DA SILVA ROSSETTO",2018-11-29,21,12:00:00,2147483647,0,,,0,0,,,"2018-11-29 02:18:45",1,0,,
+73,"Marciel Rossetto",2018-11-29,45,18:30:00,2147483647,0,,,0,0,,,"2018-11-29 02:19:03",1,0,,
+75,"Marciel Rossetto",2018-11-30,23,23:33:00,2147483647,0,,,0,0,,,"2018-11-29 23:21:46",1,0,,
+77,joao,2018-11-29,41,17:02:00,32232323,234354343,,,0,0,234234234,,"2018-11-30 09:25:27",1,0,,
+78,"FRANCILENE DE RAUJO SILVA",2018-11-30,100,12:00:00,0,0,,,0,0,,,"2018-11-30 09:25:51",1,0,,
+79,"jose sssasdas",2018-11-30,255,21:02:00,5656,5656,"nao definido","nao definido",0,0,puiuio,,"2018-11-30 09:26:13",1,0,,
+80,"Marciel Rossetto",2018-12-04,45,12:00:00,2147483647,0,casamento,individual,0,0,4545,,"2018-12-04 02:59:42",1,0,,
+81,"Marciel Rossetto",2018-12-05,2,23:23:00,2147483647,2147483647,confraternizacao,unica,0,23,23232,,"2018-12-04 03:15:35",1,0,,
+82,"KHAUAN DA SILVA ROSSETTO",2018-12-05,23,23:23:00,2147483647,23232323,confraternizacao,unica,0,34,5454545,,"2018-12-04 03:18:55",1,0,,
+83,"KHAUAN DA SILVA ROSSETTO",2018-12-06,32,23:23:00,2147483647,2147483647,confraternizacao,unica_individual,0,878,78787878,,"2018-12-04 03:20:54",1,0,,
+84,"KHAUAN DA SILVA ROSSETTO",2018-12-06,45,23:32:00,2147483647,2147483647,casamento,unica,0,788878,nadad,,"2018-12-04 03:23:02",1,0,,
+85,"KHAUAN DA SILVA ROSSETTOd",2018-12-06,78,12:21:00,2147483647,2147483647,casamento,unica_individual,0,34,34533453,,"2018-12-04 03:24:20",1,0,,
+86,qwqweqqw,2018-12-06,15,12:12:00,2147483647,32323232,confraternizacao,unica,0,23,,,"2018-12-04 03:26:09",1,0,,
+87,"Marciel rossetto",2018-12-05,12,12:31:00,21996169369,,,outros,0,23,3423452345,,"2018-12-04 03:28:09",1,0,,"Problemas financeiros"
+91,"jose da silva",2018-12-04,25,12:12:00,2147483647,2147483647,formatura,unica_individual,0,58,12,,"2018-12-04 16:06:51",1,0,,
+92,mnarfef,2019-04-18,23,12:11:00,122312312,34343434,aniversario,unica,0,0,12eqwe,,"2019-04-18 23:49:59",1,0,,
+93,"KHAUAN DA SILVA ROSSETTO",2019-04-22,23,22:22:00,2147483647,2147483647,casamento,unica,0,0,ertert,,"2019-04-22 19:24:17",1,0,,
+95,"MARCIEL ROSSETTO",2019-08-19,34,12:12:00,0,0,aniversario,unica,0,0,,,"2019-08-19 12:55:43",1,0,,
+97,marciel,2019-09-23,30,08:08:00,2147483647,2147483647,formatura,unica_individual,0,0,,,"2019-09-23 13:12:30",1,0,,
+98,pedro,2019-09-23,34,00:00:00,0,0,,,0,0,,,"2019-09-23 13:15:55",1,0,,
+99,marcos,2019-09-23,20,12:20:00,0,0,,,0,0,,,"2019-09-23 13:16:28",1,0,,
+100,joao,2019-09-25,34,12:33:00,343434,343434,casamento,individual,0,0,343434,,"2019-09-24 12:59:16",1,0,,
+101,ross,2024-02-19,44,12:36:00,2147483647,0,"Bodas casamento","U (rod) I (beb)",0,0,fdfdfd,,"2024-02-17 01:52:50",1,0,,
+102,ross,2024-02-23,89,08:11:00,44554455,2147483647,"Bodas casamento",outros,0,13,56756756,,"2024-02-17 01:54:58",1,0,,
+103,"Marciel Lazzaretti Rossetto",2024-02-21,10,20:49:00,2147483647,0,Aniversario,individual,0,16,"nasda a declarar
+",,"2024-02-17 19:48:26",1,0,,
+104,"heloiza 22",2024-02-22,45,12:00:00,2147483647,0,Aniversario,unica,0,0,"teste 2",,"2024-02-17 19:52:28",1,0,,
+105,"altair da silveira",2024-02-24,25,20:12:00,2147483647,0,"nao definido",unica,0,0,5uhsdhshdbfbsdfsdfsdf,,"2024-02-17 20:02:39",1,0,,
+106,joel,2024-02-23,65,21:35:00,2147483647,0,Formatura,unica,0,0,nadassss,,"2024-02-17 20:13:16",1,0,,
+107,httt,2024-02-23,96,23:35:00,2147483647,0,Aniversario,unica,0,12,669988,,"2024-02-17 20:14:32",1,0,,
+108,"Marciel Lazzaretti Rossetto",2024-03-02,58,08:05:00,0,2147483647,"Conf. Familia",outros,0,0,58585858,,"2024-02-17 20:16:13",1,0,,
+109,gfgfgf,2024-02-23,58,21:21:00,2147483647,2147483647,"Conf. fim de ano","U (rod) I (beb)",0,0,5858585,,"2024-02-17 20:28:22",1,0,,
+110,888555588,2024-02-18,85,21:33:00,2147483647,133,"Conf. fim de ano",individual,0,3,,,"2024-02-17 20:32:53",1,0,,
+111,"Fernanda ",2024-02-25,48,02:32:00,889955555,0,"Conf. fim de ano",individual,0,14,dfgdfh,,"2024-02-17 23:31:47",1,0,,
+112,"Marciel Lazzaretti Rossetto",2024-10-30,2344,04:03:00,dsfgsdfg,0,Formatura,individual,0,"Salão 1",dfgsdfgsdfgsdfg,,"2024-10-28 01:48:00",0,0,,"Problemas de saúde"
+113,marciel2,2024-10-29,235,11:15:00,899665544778,07845546563,aniversario,unica,,0,rrytrtyrtyrtyrty,,"2024-10-28 19:12:50",1,0,,
+115,marciel,2024-10-30,23,12:23:00,589854875,21889966584785,Formatura,unica,0,"Centro do salão",qwesdfhdfghdfghdfgh,,"2024-10-28 19:30:45",1,0,,
+116,"franci ",2024-10-29,45,11:11:00,2147483647,2147483647,aniversario,unica,,0,12123qweqweqweq,,"2024-10-28 19:34:05",1,0,,
+117,"Marciel rossetto",2024-10-29,234,11:11:00,21996169369,21995214745,casamento,individual,,0,ghuxthjdstgh,,"2024-10-28 19:39:07",1,0,,
+118,joao,2024-10-29,65,22:22:00,995114782,21,aniversario,unica,,0,jwdjsjkgnajfdkghifjghadj,,"2024-10-28 19:46:48",1,0,,
+119,"Marciel rossetto",2024-10-29,4,22:22:00,21996169369,21996169369,aniversario,unica,,0,khuajhahah,,"2024-10-28 20:11:25",1,0,,
+120,"Marciel rossetto",2024-10-29,35,17:03:00,21996169369,21995114782,"Bodas casamento",individual,0,0,qwwwadfasda,,"2024-10-28 22:03:06",1,0,,
+121,"maria de nazaré",2024-10-31,100,20:30:00,219988774455,219966554455,"Bodas casamento",unica,0,"Próximo ao jardim","nao pediu nada",,"2024-10-28 23:14:26",1,0,,
+122,"maria jose",2024-10-30,23,22:22:00,2222222222,2222222222,"Conf. Familia",unica,110,"Próximo ao jardim",2222222222,,"2024-10-28 23:18:45",1,0,,
+123,"maria jose",2024-10-23,23,17:49:00,2222222226,2222222227,"Bodas casamento",unica,125,13,zzxvxv,,"2024-10-29 00:48:02",1,0,,
+124,"francilene de araujo silva",2024-10-30,54,12:12:00,21995114782,21995221132,"Conf. fim de ano",individual,0,"Próximo ao jardim","aniver do dia nao liberei ft mr",,"2024-10-29 11:00:43",1,0,,
+125,marciel,2024-10-31,1000,11:11:00,11111111,111111,"Conf. fim de ano",unica,105,"Centro do salão",1111111,,"2024-10-30 01:22:06",0,0,,"Falecimento na família"
+126,qweqweqweqweqwe,2024-10-31,50000,11:11:00,111111,11111,"Conf. Familia",unica,125,"Centro do salão",1231231231,,"2024-10-30 01:24:35",0,0,,"Problemas de saúde"
+127,sdgdfsdf,2024-10-31,23,12:32:00,21995854567,,"Conf. fim de ano","Não definido",0,"Salão 1",234234234234234,,"2024-10-30 01:33:03",1,0,,
+128,rtwertwert,2024-10-09,1000,20:06:00,,,"Não definido","Não definido",0,,,,"2024-10-30 02:05:18",1,0,,
+129,qwerqwerqwerqwer,2024-11-21,10,00:00:00,,,,,0,,,,"2024-10-30 02:09:32",1,0,,
+130,wererwerasdfafdas,2024-10-21,23,12:52:00,,,"Não definido","Não definido",0,,,,"2024-10-30 07:52:59",1,0,,
+131,sdfsdfsdf,2025-03-20,100,12:59:00,,,"Não definido","Não definido",0,,,,"2024-10-30 07:59:21",1,0,,
+132,ertyertyrty,2024-12-31,1222,12:00:00,,,"Não definido","Não definido",0,,,,"2024-10-30 08:00:19",1,0,,
+133,werwerwerdfdfdg,2025-12-31,34,12:01:00,21996460645,,Aniversario,"U (rod) I (beb)",0,4,,,"2024-10-30 08:01:07",1,0,,
+134,hshdhjdjjdgo,2026-03-26,234,12:20:00,,,"Não definido","Não definido",0,,,,"2024-10-30 09:20:50",1,0,,
+135,"Marciel rossetto",2025-10-16,243,13:22:00,21996169369,,"Conf. fim de ano","U (rod) I (beb)",0,,,,"2024-10-30 09:22:48",1,0,,
+136,jdhdhhhxh,2024-10-07,258,13:26:00,,,"Não definido","Não definido",0,,,,"2024-10-30 09:26:31",1,0,,
+137,"Marciel rossetto",2024-11-06,8,17:08:00,21996169369,2199876545,Confraternizacao,individual,0,"Centro do salão","nao servir bebida alc",,"2024-10-30 16:09:20",1,0,,
+138,"Marciel rossetto",2025-11-28,23,23:10:00,21996169369,,"Conf. fim de ano",unica,0,,3ert56yt,,"2024-10-30 22:11:15",1,0,,"Problemas financeiros"
+139,ewtertwertwert,2024-11-01,345,12:22:00,,,"Não definido","Não definido",0,,,,"2024-10-30 22:45:29",1,0,,
+140,12213,2024-11-02,123,12:23:00,,,"Não definido","Não definido",0,,,,"2024-10-30 22:45:47",1,0,,
+141,123123123123,2024-11-03,123,12:32:00,,,"Não definido","Não definido",0,,,,"2024-10-30 22:46:09",1,0,,
+142,123123123123,2024-10-15,1201,12:22:00,,,"Não definido","Não definido",0,,,,"2024-10-31 01:02:22",1,0,,
+143,marciel,2024-10-09,124,12:33:00,,,"Não definido","Não definido",0,,,,"2024-10-31 01:02:49",1,0,,
+144,sdfgsdfgsdfg,2024-10-11,34553,22:22:00,,,"Não definido","Não definido",0,,,,"2024-10-31 01:03:12",0,0,,"Problemas financeiros"
+145,234234234234,2024-10-10,234,22:22:00,,,"Não definido","Não definido",0,,,,"2024-10-31 01:03:33",1,0,,
+146,234234234,2024-10-12,234,03:43:00,,,"Não definido","Não definido",0,,,,"2024-10-31 01:03:52",1,0,,
+147,24dfgsdfgdf,2024-11-04,2324,23:04:00,,,"Não definido","Não definido",0,,,,"2024-10-31 01:04:16",1,0,,
+148,werwew,2024-11-07,123,11:11:00,,,"Não definido","Não definido",0,,,,"2024-10-31 01:04:40",1,0,,
+149,ertertert,2024-11-10,1233,12:33:00,,,"Não definido","Não definido",0,,,,"2024-10-31 01:05:15",1,0,,
+150,dfgdfgdfgd,2027-03-28,2344,12:11:00,,,"Não definido","Não definido",0,,,,"2024-10-31 01:05:54",1,0,,
+151,maiquel,2024-11-02,250,12:30:00,21996410645,21996169369,Formatura,unica(rod)individual(beb),0,"Próximo ao jardim",23,,"2024-10-31 23:56:03",1,0,,
+152,"maiquel lazzaretti",2024-11-22,24,12:00:00,999999999,,Aniversario,unica,84,49,"aniver nao é do dia, liberar rodizio",,"2024-11-01 00:40:04",1,0,,
+153,"maiquel lazzaretti",2024-11-01,24,12:34:00,9999999991,1213123123123,Aniversario,unica,84,"Próximo ao jardim","efdasfasasdasdasdkansdajdkajbsdkabsdkasbdkasakdbakbskasbkabdskajbdskasdasd
+asd
+as
+da
+sd
+as
+
+",,"2024-11-01 00:49:33",1,0,,
+154,weqwerqwerqwerqw,2024-11-01,235,12:12:00,123123123,123123,Aniversario,unica,99,"Centro do salão","1231231fsdsdfsdfs~llsmdvsmmpsmpdmfpsmdpfmsdpfmsçldmfçsldmfçlsmdçlsmdfçsmdçfmsdçfmsçdmfsçdmfçsdmfçsldmfçlsmdfçsmdfçlsmdçfmsçdfmçsldmfçsdmfçsdmfçsdmfçsdmfçsmdfsdmfçsdmfçsdmfçsdfsdfs
+
+sd
+f
+sdf
+sd
+f
+sd",,"2024-11-01 00:50:28",1,0,,
+155,weqwerqwerqwerqw,2024-10-31,23,12:12:00,,123123,"Não definido","Não definido",0,,asgsdfdsfsdfhsdfhsdfgsdfgsdfgsdfgsdfgsdfgsdfgsdfg,,"2024-11-01 02:40:28",1,0,,
+156,"kw ",2024-11-01,254,12:58:00,21589568548,545845485,Formatura,individual,89,"Próximo à janela",sdfgsdfgsdfgsdfsdfghsdfgsdgsdgrsdfgsdfhsdfhsdghsdfhgsdfgsdfgsdfgsdfgsdfgsdfgsdfgsdfgsdfgsdfgsdfgsdfgsdfgsdfgsdfgsdfgdsfgsdfgdsfgdfgsdfgsdfgsdfgdsfgsdfgsdfgsdfgsdfgsdfgsdfgsdfgsdfgsdfgsdfgdfgsdfgsdfgsdfgsdfgsdfg,,"2024-11-01 10:30:18",1,0,,
+157,wee,2024-11-01,698,18:35:00,,,"Não definido","Não definido",0,,dfhsdfhsdhsdhsdf,,"2024-11-01 10:31:09",0,0,,"Mudança de planos"
+158,"fernanda ",2024-11-01,234,18:34:00,,,,,0,1,,,"2024-11-01 23:22:26",1,0,,
+159,qwerwerqwerwq,2024-12-01,235,12:11:00,,,"Não definido","Não definido",0,,1wrtgsdfgsdfgsdfgsdfgsdfgsdfgsdfgsdfgsdfg,,"2024-11-01 23:33:37",1,0,,
+160,sadshsdhfsdfgsdfg,2024-12-02,456,12:56:00,,,"Não definido","Não definido",0,,,,"2024-11-01 23:34:19",1,0,,
+161,hwryey,2024-12-03,1234,12:44:00,,,,,0,,,,"2024-11-01 23:44:10",1,0,,
+162,hwryey,2024-11-02,12,00:00:00,,,"Não definido","Não definido",99,"Próximo à janela",,,"2024-11-01 23:57:45",1,0,,
+163,hwryey,2024-11-01,12255,00:00:00,,,"Não definido","Não definido",0,,,,"2024-11-02 00:12:34",0,0,,"Falecimento na família"
+164,werasasdasd,2024-11-02,211,11:11:00,,,"Não definido","Não definido",105,,,,"2024-11-02 01:08:12",0,0,,"Nada que vc cdhhdh"
+165,werasasdasd,2024-11-01,21,17:33:00,,,"Não definido","Não definido",0,,,,"2024-11-02 02:32:12",1,0,,
+166,"Marciel rossetto",2024-11-09,214,12:22:00,21996169369,,Casamento,unica(rod)individual(beb),0,"Próximo ao jardim",,,"2024-11-02 19:05:27",1,0,,
+167,wiwiwiwiwiiw,2027-01-01,122,12:12:00,222222222,2222222222,"Bodas casamento",unica,125,"Próximo à janela",9wwkwiiw9wowow0w9wowowo8s9wikw,,"2024-11-02 19:09:08",1,0,,
+168,"Marciel rossetto",2025-11-29,322,12:22:00,21996169369,,Casamento,individual,113,"Salão 3",,,"2024-11-02 19:12:55",1,0,,olalalallallallalla
+169,"Marciel rossetto",2024-11-08,120,12:33:00,21996169369,,,unica,0,"Próximo ao jardim",Hshsh,,"2024-11-07 00:39:39",1,0,17,
+170,"MARCIEL ROSSETTO",2024-11-22,32,00:20:00,2155578,,casamento,individual,125,"Salão 2",6wywtwg,,"2024-11-07 00:51:39",1,0,33,
+171,"Marciel rossetto",2024-11-14,53,20:05:00,21996169369,,"Conf. fim de ano",individual,125,"Próximo ao jardim",Bdhddh,,"2024-11-07 01:06:11",1,0,17,
+172,"Jose ",2024-11-05,63,18:08:00,42616,,"Bodas casamento","U (rod) I (beb)",125,"Próximo à janela",Jdjdh,,"2024-11-07 01:08:56",1,0,17,
+173,"Pietro da silva ",2024-11-08,43,18:30:00,422262727,,"Conf. Familia",individual,125,"Próximo ao jardim",Jsjdhdh,,"2024-11-07 01:23:36",1,0,37,Teste
+174,Marciel,2024-11-10,64,20:03:00,62637,,"Conf. fim de ano","U (rod) I (beb)",125,"Próximo à janela",Gshshdhh,,"2024-11-07 02:03:49",1,0,37,
+175,"Marciel rossetto",2024-11-08,65,21:08:00,21996169369,,Aniversario,,0,"Próximo ao jardim",Hdhdhh,,"2024-11-07 02:09:12",1,0,35,"Nosso que nada"
+176,"Marciel rossetto",2024-11-08,6,13:30:00,21996169369,,"Conf. Familia",individual,125,"Próximo à janela",Hsjdjjdjjx,,"2024-11-07 02:53:46",1,0,37,
+177,Franci,2024-11-13,50,19:00:00,21995114782,,"Conf. fim de ano",individual,110,"Próximo à janela","Tem 3 crianças 3, 5 e 7 anos
+Tem 1 bariátricas 
+Tem 2 aniversariante ",,"2024-11-07 09:46:26",1,0,17,
+178,"Talison da silva ",2024-11-08,109,19:30:00,21995114782,,Formatura,"U (rod) I (beb)",110,5,,,"2024-11-07 10:13:03",1,0,17,
+179,"Marciel rossetto",2024-11-08,42,13:13:00,21996169369,,"Não definido","Não definido",0,,,,"2024-11-07 10:13:41",1,0,17,
+180,"Franci silva ",2024-11-09,15,19:00:00,21995114782,,"Conf. fim de ano",unica,110,6,Teste,,"2024-11-07 10:20:09",1,0,17,"nao falou"
+181,"Franci Araújo ",2024-11-09,20,19:00:00,21995114782,,"Conf. fim de ano",individual,0,6,Testdghbh,,"2024-11-07 10:23:40",1,0,17,sdfsds
+182,"Maiquel rossetto",2024-11-08,20,18:30:00,21996410645,,Aniversario,individual,110,49,Jdhhdgdggdgdhsjvsvhdjid,,"2024-11-07 10:26:33",1,0,17,
+183,"Marciel rossetto",2025-04-24,580,02:30:00,21996169369,,"Conf. fim de ano",unica,125,"Centro do salão",Gagsgsgsgsg,,"2024-11-07 11:14:12",1,0,17,
+184,"Marciel rossetto",2025-01-01,25,12:00:00,21996169369,,"Não definido","Não definido",0,,,,"2024-11-07 11:39:44",1,0,17,
+185,"Antônio Joilson Ricardo ",2024-11-17,22,19:00:00,987888060,,Aniversario,individual,0,18,,,"2024-11-07 12:22:53",1,0,17,
+186,Ronaldo,2024-11-21,52,12:40:00,21988760271,,casamento,unica,125,"Próximo à janela","Nada a pedir ",,"2024-11-07 12:42:21",1,0,17,
+187,"Vitor ",2024-11-07,5,12:06:00,21996070643,,"Conf. Familia",unica,110,8,Ok,,"2024-11-07 13:07:30",1,0,17,
+188,"Marciel rossetto",2024-11-07,543,13:10:00,21996169369,,casamento,outros,125,"Centro do salão","Nada ",,"2024-11-07 13:10:47",1,0,37,
+189,"Ana ferreira",2024-11-09,15,12:30:00,21996070643,,"Conf. fim de ano","U (rod) I (beb)",34,"Próximo à janela",Ind,,"2024-11-08 11:14:51",1,0,17,
+190,"Gilmar Dedordi",2024-12-06,25,20:30:00,21993694901,,Aniversario,individual,111,"Próximo à janela","Aniversário do dia ",,"2024-11-08 13:27:33",1,0,37,
+191,"Marciel rossetto",2025-01-01,65,18:22:00,21996169369,,"Conf. Familia",individual,156,"Próximo ao jardim",Bsbsbs,,"2024-11-08 17:23:16",1,0,37,
+192,"Marciel rossetto",2024-11-08,56,20:45:00,21996169369,,casamento,"U (rod) I (beb)",156,"Próximo ao jardim",,,"2024-11-08 19:46:16",1,0,37,
+193,Gabriel,2024-11-09,54,20:56:00,21983912066,,"Conf. fim de ano",individual,106,"Próximo à janela","Nada ",,"2024-11-08 22:57:03",1,0,37,
+194,"Marciel rossetto",2024-11-19,233,12:22:00,21996169369,,"Não definido","Não definido",0,,,,"2024-11-09 01:22:12",1,0,17,
+195,"Marciel rossetto",2024-11-04,23,12:33:00,21996169369,,"Não definido","Não definido",0,,,,"2024-11-09 01:23:03",1,0,17,teste
+196,"maiquel lazzaretti",2024-11-11,54,12:33:00,999999999,,"Não definido","Não definido",0,,,,"2024-11-09 01:23:23",1,0,17,
+197,"Marciel rossetto",2024-12-07,122,12:22:00,21996169369,,"Não definido","Não definido",0,,"I\'m not sure if anyone is reading this right now, but if so, I want you to know that I wish you a day full of love and joy. May every moment bring you closer to your goals and may you never lose faith in yourself. You are unique and capable of achieving anything you set your mind to!
+
+I\'m not su",,"2024-11-09 02:51:38",1,0,17,
+198,"Marciel rossetto",2024-11-15,12,19:26:00,21996169369,,"Conf. Familia","U (rod) I (beb)",89,"Centro do salão",Hdjdh,,"2024-11-09 19:27:06",1,0,37,
+199,"Marciel rossetto",2024-11-30,43,19:29:00,21996169369,,Aniversario,"U (rod) I (beb)",111,"Próximo ao jardim",,,"2024-11-09 19:29:54",1,0,37,
+200,Lucas,2024-11-26,54,20:31:00,21986846183,,Aniversario,unica,111,"Próximo à janela","Aniver do dia liberado ",,"2024-11-09 19:34:18",1,0,37,
+201,"Adaltom ",2024-11-25,15,19:30:00,21969621603,,"Conf. fim de ano",individual,106,"Próximo à janela","Nada ",,"2024-11-10 19:13:56",1,0,37,
+202,"Marciel rossetto",2025-02-11,34,22:33:00,21996169369,,"Conf. fim de ano",unica,111,"Centro do salão",,,"2024-11-11 23:26:27",1,0,17,
+203,"Marciel rossetto",2025-03-11,44,22:33:00,21996169369,,Aniversario,unica,111,"Centro do salão",,,"2024-11-11 23:27:04",1,0,17,
+204,weqwerqwer,2024-04-11,36,12:22:00,1122223332221,,"Não definido","Não definido",0,,,,"2024-11-11 23:28:08",1,0,17,
+205,"MARCIEL ROSSETTO",2024-11-06,42,19:00:00,2199619369,,casamento,"U (rod) I (beb)",106,1,,,"2024-11-13 19:21:03",1,0,17,
+206,"Raphael ",2024-11-20,10,20:00:00,21996153576,,casamento,individual,106,"Próximo ao jardim","Nada ",,"2024-11-14 21:45:15",1,0,17,
+207,"Juliano ",2024-11-19,4,20:00:00,21999767226,,"Conf. fim de ano",individual,111,"Próximo ao jardim",,,"2024-11-18 14:09:34",1,0,17,
+208,Franci,2024-11-28,647,20:45:00,21995114782,,"Conf. Familia","U (rod) I (beb)",156,"Próximo à janela",Hshdh,,"2024-11-27 17:45:51",1,0,17,asasdasdasd
+209,"Pedro ",2024-11-28,45,20:52:00,21995114782,,casamento,outros,89,"Próximo ao jardim","Nada ",,"2024-11-27 17:53:06",1,0,39,
+210,Khyan,2024-11-28,34,21:55:00,2116263663,,casamento,individual,0,"Próximo ao jardim",,,"2024-11-27 17:55:29",1,0,40,
+211,"Marciel rossetto",2024-11-28,65,12:00:00,21996169369,,"Bodas casamento","U (rod) I (beb)",132,"Centro do salão","<div class=\"modal-dialog\" role=\"document\">
+    <div class=\"modal-content\">
+        <div class=\"modal-header\">
+            <h5 class=\"modal-title\" id=\"exampleModalLongTitle\">Login</h5>
+        </div>
+        <div class=\"modal-body\">",,"2024-11-27 23:09:58",1,0,17,
+212,"Marciel rossetto",2025-02-12,45,20:30:00,21996169369,,Aniversario,individual,124,2,,,"2024-11-27 23:23:34",1,0,17,
+213,"Marciel rossetto",2024-11-30,36,08:40:00,21996169369,,Formatura,"U (rod) I (beb)",132,"Próximo ao jardim",,,"2024-11-28 00:38:54",1,0,17,
+214,"Mario ",2025-01-24,32,12:24:00,219996169369,,Formatura,,0,"Centro do salão","As taxas dos títulos do Tesouro Direto operam em forte alta na tarde desta quarta-feira (27), após retomada das negociações, que haviam sido suspensas devido à alta volatilidade dos juros. A suspensão é um procedimento padrão do Tesouro Nacional em momentos de grande oscilação das taxas, visando pro",,"2024-11-28 10:01:56",1,0,17,
+215,"Marciel rossetto",2024-11-29,21,14:25:00,21996169369,,"Conf. Familia","U (rod) I (beb)",0,,"As taxas dos títulos do Tesouro Direto operam em forte alta na tarde desta quarta-feira (27), após retomada das negociações, que haviam sido suspensas devido à alta volatilidade dos juros. A suspensão é um procedimento padrão do Tesouro Nacional em momentos de grande oscilação das taxas, visando pro",,"2024-11-28 10:15:22",1,0,17,Nadav
+216,"Fabio ",2024-12-01,18,13:00:00,21995334729,,Aniversario,unica,100,"Próximo ao jardim",,,"2024-11-28 17:23:05",1,0,17,
+217,"Marciel rossetto",2024-11-30,45,20:48:00,21996169369,,Formatura,individual,115,"Próximo ao jardim","Teste ",,"2024-11-29 11:48:23",1,0,17,
+218,Gilvan,2024-12-30,190,19:54:00,21980454300,,"Conf. fim de ano",individual,0,,"Nada ",,"2024-11-29 11:55:23",1,0,17,
+219,"Marciel rossetto",2025-01-21,234,21:41:00,21996169369,,"Não definido","U (rod) I (beb)",115,4,Nndbbddb,,"2024-11-29 12:42:03",1,0,17,
+220,"Marciel rossetto",2024-12-25,234,20:30:00,21996169369,,Aniversario,individual,115,"Próximo ao jardim",Ndndnj,,"2024-11-29 14:30:56",1,0,38,"Teste pra ver se funciona"
+221,vgfdfgdfgdf,2026-02-14,45,12:00:00,21995214745,,Aniversario,unica,0,,fsdfsdfsdf,,"2024-12-01 01:49:44",1,0,17,
+222,Marcos,2025-12-25,123,12:05:00,21991522414,21998744557,Aniversario,unica,0,,Hfhfhhdjejrh,,"2024-12-01 02:37:39",1,0,17,
+223,"Marciel rossetto",2024-12-02,568,12:30:00,21996169369,,,,0,,"Pagou a metade dos rodizios",,"2024-12-01 10:02:23",1,0,17,
+224,Jertndh,2024-12-04,478,21:30:00,2199161616,,"Não definido","Não definido",0,,,,"2024-12-01 10:03:05",0,0,17,Teste
+225,Ururu4,2024-12-05,78,12:30:00,2144,,Formatura,"U (rod) I (beb)",110,"Próximo à janela",,,"2024-12-01 10:04:28",1,0,17,
+226,Ana,2024-12-02,34,21:07:00,21995114782,,"Não definido",individual,110,"Centro do salão","Kkkkk
+Ffffffd
+
+
+Dddfffd
+Ddd
+Dddfff
+Hggg
+",,"2024-12-01 21:07:39",1,0,17,
+227,Khauan,2024-12-02,67,20:08:00,21995114782,,"Conf. fim de ano",unica,110,6,Jxjdjdjd,,"2024-12-01 21:09:29",1,0,42,
+228,Hshhjshsh,2024-12-02,65,12:14:00,21999999888,,"Não definido","U (rod) I (beb)",0,,,,"2024-12-01 21:14:24",1,0,37,
+229,sfgsdfgsdfg,2027-01-20,1234,12:00:00,215566778899,,Aniversario,unica(rod)individual(beb),0,6,"O mercado financeiro deve abrir o pregão com um clima mais tranquilo nesta segunda-feira (2), após o Ibovespa registrar o pior desempenho em oito anos e o dólar bater em R$ 6. Não que a tensão sobre o anúncio paralelo do pacote fiscal e da isenção do Imposto de Renda (IR) tenha saído do ar. O cenári",,"2024-12-01 23:51:05",1,0,17,
+230,"Marciel ",2024-12-04,125,12:29:00,21664994555,,,unica,0,10,Yeysgtstststdt,,"2024-12-02 02:37:09",1,0,17,
+231,"Renato salomao",2024-12-08,20,12:00:00,21971500874,,"Conf. fim de ano",unica,120,"Próximo à janela",,,"2024-12-02 13:11:46",1,0,17,
+232,Cristiano,2024-12-23,15,19:20:00,21982792683,,"Conf. fim de ano",individual,120,"Salão 3",Gsgshh,,"2024-12-02 14:35:29",1,0,41,
+233,"Silvio ",2024-12-10,30,19:00:00,21982203885,,casamento,individual,110,"Próximo ao jardim",,,"2024-12-02 15:03:25",1,0,41,
+234,Adaltom,2024-12-17,25,12:30:00,21969621603,,"Conf. fim de ano",individual,21,"Centro do salão",Jdkdjdjdudu,,"2024-12-02 23:20:35",1,0,17,
+235,"Marciel rossetto",2025-12-01,58,12:00:00,21996169369,,"Conf. fim de ano",unica,0,"Salão 1",testando,sczvxbsdfgsadfgsdfbgzcxvb,"2025-11-28 20:32:14",0,1,29,"Mudança de planos"
+236,"João da Silva",2025-02-10,4,20:00:00,21987654321,,,,0,12,"Aniversário do filho",,"2025-11-28 21:29:11",1,0,44,
+237,"Pedro Santos",2025-02-22,6,18:45:00,21994561234,,,,0,,"Cliente prefere mesa no salão 2",,"2025-11-28 21:37:43",1,0,44,
+238,"Pedro Santos",2025-02-22,7,18:45:00,21994561234,,,,0,,"Cliente prefere mesa no salão 2",,"2025-11-28 21:55:44",1,0,29,
+239,"Pedro Santos3",2025-02-22,62,18:48:00,21984561234,,,"Não definido",0,,,,"2025-11-28 21:57:12",1,0,29,
+240,"Pedro Santos",2025-02-22,5,18:45:00,21994561234,,,,0,,"Cliente prefere mesa no salão 2",,"2025-11-28 21:58:20",1,0,29,
+241,"Pedro Santos",2025-02-22,9,18:45:00,21994561234,,,,0,,"Cliente prefere mesa no salão 2",,"2025-11-28 22:02:11",1,0,29,
+242,"Pedro Santos",2025-02-22,99,18:45:00,21994561234,,,"Não definido",0,,,,"2025-11-28 22:03:32",1,0,44,
+243,"Pedro Santos",2025-02-22,67,18:45:00,21994561234,,,,0,,"
+","cliente bom demaIS","2025-11-28 22:04:04",1,0,44,
+244,"Camila Nogueira",2025-01-30,2,19:15:00,21994561234,,,,0,8,"Cliente virá com bebê",,"2025-11-28 22:25:48",1,0,44,
+245,"Ricardo Moreira",2025-03-01,10,13:30:00,21994561234,,,"U (rod) I (beb)",0,"Salão 1","Quer mesa perto da janela",,"2025-11-28 22:26:25",1,0,44,
+246,"Fernanda Almeida",2025-02-25,4,20:00:00,21994561234,,,Individual,0,12,Aniversário,,"2025-11-28 22:26:45",1,0,44,
+247,"Pedro Santos",2025-02-22,61,18:45:00,21994561234,,,Única,0,"Salão 2","Cliente prefere mesa no salão 2",,"2025-11-28 22:27:14",1,0,44,
+248,"Ricardo Moreira",2025-03-01,101,13:30:00,21994561234,,,"U (rod) I (beb)",0,"Salão 1","Quer mesa perto da janela",,"2025-11-28 22:28:59",1,0,29,
+249,"Ricardo Moreira",2025-03-01,18,13:30:00,21994561234,,,"U (rod) I (beb)",0,"Salão 1","Quer mesa perto da janela",,"2025-11-28 22:29:23",1,0,29,
+250,"Marciel rossetto",2025-02-25,12,20:00:00,21996169369,,,Individual,0,12,Aniversário,,"2025-11-28 22:34:47",1,0,29,
+251,"Marciel rossetto",2025-02-25,46,20:00:00,21996169369,,Casamento,outros,113,"Próximo ao jardim",Ft,,"2025-11-28 22:45:42",1,0,29,
+252,"Camila Nogueira",2025-11-30,24,19:15:00,21994561234,,,Outros,0,8,"Cliente virá com bebê",,"2025-11-28 22:47:14",1,0,29,
+253,"Camila Nogueira",2025-01-30,21,19:15:00,21994561234,,,Outros,0,8,"Cliente virá com bebê",,"2025-11-28 22:48:01",1,0,29,
+254,"Camila Nogue",2025-01-30,4,19:15:00,21994561234,,,Outros,0,8,"Cliente virá com bebê",,"2025-11-29 05:00:50",1,1,29,
+255,"Marciel rossetto",2025-03-01,14,13:30:00,21996169369,,Aniversario,individual,136,"Salão 1","Quer mesa perto da janela",,"2025-11-29 05:01:58",1,1,29,
+256,"Ricardo Moreira",2025-12-01,14,19:30:00,21994561234,,,"U (rod) I (beb)",0,"Salão 4","Quer mesa perto da janela",,"2025-11-29 05:43:09",0,0,44,"Falecimento na família"
+257,"Marciel rossetto",2025-12-01,23,19:30:00,21996169369,,,única,0,23,nada,,"2025-11-29 06:51:38",0,0,44,"Problemas financeiros"
+258,"Marciel rossetto",2025-12-01,22,19:30:00,21996169369,,,única,0,23,nada,,"2025-11-29 07:17:52",0,0,44,"Falecimento na família"
+259,"Marciel rossetto",2025-02-25,47,20:09:00,21996169369,,,Individual,0,12,Aniversário,,"2025-11-29 10:11:16",1,0,46,
+260,"Fernanda Almeida3",2025-02-25,4,20:00:00,21994561239,,,Individual,0,12,Aniversário,,"2025-11-29 10:18:22",1,0,46,
+261,"Fernanda Almeida",2025-02-25,4,20:00:00,21994561239,,"Conf. Familia",individual,136,29,Anivsssersário,,"2025-11-29 10:19:57",1,0,46,
+262,"Marciel rossetto",2025-02-25,9,20:00:00,21994561234,,,Individual,0,12,Aniversário,,"2025-11-29 10:21:22",1,0,46,
+263,"Thiago Rocha",2025-02-10,5,12:00:00,21994561234,,,Única,0,20,"Cliente pediu sem restrições",,"2025-11-29 11:01:15",1,0,44,
+264,"Thiago Rocha",2025-02-10,55,12:00:00,21994561234,,,"Não definido",0,"Próximo à janela","Cliente pediu sem restrições",,"2025-11-29 11:02:54",1,0,44,
+265,"Camila Nogueira",2025-01-30,23,19:15:00,21994561234,,,Outros,0,8,"Cliente virá com bebê",,"2025-11-29 12:15:41",1,0,44,
+266,Silvino,2025-12-30,23,19:15:00,21982203885,,,Outros,0,8,"Cliente virá com bebê",,"2025-11-29 12:19:33",1,0,44,
+267,"Pedro Santos",2025-02-22,76,18:45:00,21994561234,,,Única,0,"Salão 2","Cliente prefere mesa no salão 2",,"2025-11-29 14:56:09",1,0,44,
+268,"Pedro Santos",2025-02-22,55,18:45:00,21994561234,,,,0,"Salão 2","Cliente prefere mesa no salão
+Por favor, envie os dados da sua reserva:
+
+Nome: Pedro Santos
+Telefone: 21994561234
+Data: 2025-02-22
+Horário: 18:45
+Pessoas: 6
+Pagamento: Única
+Mesa: Salão 2
+Observações: Cliente prefere mesa no salão 2",,"2025-11-29 14:56:56",1,0,44,
+269,livia,2025-02-22,12,18:45:00,21994561234,,,Única,0,"Salão 2","Cliente prefere mesa no salão 2",,"2025-11-29 14:59:27",1,0,46,
+270,"Marciel rossetto",2025-12-10,51,12:00:00,21996169369,,,Única,0,20,"Cliente pediu sem restrições",,"2025-11-29 19:20:07",1,0,46,
+271,"Thiago Rocha",2025-02-10,53,12:00:00,21994561234,,"Conf. fim de ano",unica,113,20,"Cliente pediu sem restrições xazscadasdasda",,"2025-11-29 19:21:11",1,0,46,
+272,"Marciel rossetto",2025-12-01,55,12:00:00,21996169369,,,Única,0,20,"Cliente pediu sem restrições e se possivel uma mesa proximo a janela",,"2025-11-29 19:25:20",0,0,44,"Falecimento na família"
+273,"Thiago Rocha",2025-12-01,7,12:00:00,21994561234,,,Única,0,20,"Cliente pediu sem restrições",,"2025-11-29 19:26:34",0,0,44,"Problemas financeiros"
+274,"Marciel rossetto",2025-11-28,2,12:00:00,21996169369,,Casamento,unica,0,,sdfsdfdsf,,"2025-11-29 19:35:02",1,0,44,
+275,"Thiago Rocha",2025-11-29,55,12:00:00,21994561234,,,Única,0,20,"Cliente pediu sem restrições",,"2025-11-29 19:36:16",1,0,44,
+276,"Marciel rossetto",2025-11-28,12,12:33:00,21996169369,,Aniversario,unica,113,"Próximo ao jardim",12asdfasdfas,65yg,"2025-11-29 19:41:14",1,0,44,
+277,"Thiago Rocha",2025-12-10,54,12:00:00,21994561234,,,Única,0,20,"Cliente pediu sem restrições",,"2025-11-29 19:42:15",1,0,44,
+278,defrghdertert,2025-11-28,15,12:33:00,21996189369,,Aniversario,unica,113,"Próximo ao jardim",12asdfasdfas,,"2025-11-29 19:45:04",1,0,44,
+279,"Thiago Rocha",2025-02-10,51,12:00:00,21994561239,,,"Não definido",0,20,"Cliente pediu sem restrições",,"2025-11-29 19:45:52",1,0,44,
+280,"Thiago Rocha",2025-12-01,19,12:00:00,21994561234,,,,0,20,"Cliente pediu sem restrições",,"2025-11-29 19:52:09",0,0,44,"Falecimento na família"
+281,"Thiago Rocha",2025-12-01,12,12:00:00,21994561234,,,,0,20,"Cliente pediu sem restrições",,"2025-11-29 19:52:56",0,0,44,"Problemas de saúde"
+282,"Thiago Rocha",2025-12-10,5,12:00:00,21994561234,,,Única,0,20,"Cliente pediu sem restrições",,"2025-11-29 20:01:19",1,0,44,
+283,"Thiago Rocha",2025-11-30,5,12:00:00,21994561234,,,,0,20,"Cliente pediu sem restrições",,"2025-11-29 20:02:14",1,0,44,
+284,"Thiago Rocha",2025-12-10,42,12:00:00,21994561234,,,Única,0,20,"Cliente pediu sem restrições",,"2025-11-29 20:10:25",1,0,44,
+285,"Thiago Rocha",2025-12-10,35,12:00:00,21994561234,,,Única,0,20,"Cliente pediu sem restrições",,"2025-11-29 20:17:11",1,0,44,
+286,"Marciel rossetto",2025-11-30,7,12:00:00,21996169369,,,,136,20,"Cliente pediu sem restrições",,"2025-11-29 20:18:08",1,0,44,
+287,"Thiago Rocha",2026-02-01,51,12:00:00,21994561234,,,,0,61,"Cliente pediu sem restrições",,"2025-11-29 20:20:00",1,0,44,
+288,"Marciel rossetto",2026-02-02,78,12:00:00,21996169369,,,,0,20,"Cliente pediu sem restrições",,"2025-11-29 20:22:05",1,0,44,
+289,"Marciel rossetto",2026-02-04,23,00:30:00,21996169369,,Formatura,individual,0,11,Reff,,"2025-11-29 21:28:29",1,0,46,
+290,"Marciel rossetto",2025-12-01,54,12:08:00,21996169369,,,"Não definido",0,,,,"2025-11-29 22:08:35",0,0,44,"Problemas financeiros"
+291,"Camila Nogueira",2025-11-30,23,19:15:00,21994561234,,,Outros,0,8,"Cliente virá com bebê",,"2025-11-30 05:40:59",1,0,46,
+292,"Camila Nogueira",2025-12-02,2,19:15:00,21994561234,,,"Não definido",0,8,"Cliente virá com bebê",,"2025-11-30 05:43:21",1,0,46,
+293,"Camila Nogueira",2025-12-30,2,19:15:00,21994561234,,,Outros,0,8,"Cliente virá com bebê",,"2025-11-30 05:43:52",1,0,46,
+294,Khauan,2025-12-03,20,19:30:00,21995214745,,"Conf. Familia",,136,12,,,"2025-11-30 05:50:12",1,0,46,
+295,"Francilene de Araujo Silva",2025-11-30,21,12:30:00,21995114782,,Casamento,outros,136,"Centro do salão",Nada,,"2025-11-30 06:01:45",1,0,46,
+296,"Thiago Rocha",2025-12-10,7,12:00:00,21994561234,,,Única,0,20,"Cliente pediu sem restrições",,"2025-11-30 07:35:45",1,0,44,
+297,"Fernanda Almeida",2025-12-25,32,20:00:00,21994561234,,,Individual,0,12,Aniversário,,"2025-11-30 10:12:40",1,0,46,
+298,"Fernanda Almeida",2025-12-03,32,20:00:00,21994561234,,,,0,12,Aniversário,,"2025-11-30 10:15:25",1,0,46,
+299,"Fernanda Almeida",2026-02-04,4,20:00:00,21994561234,,,individual,0,12,Aniversário,,"2025-11-30 10:15:50",1,0,46,
+300,"Fernanda Almeida",2025-12-22,48,20:00:00,21994561234,,,Individual,0,12,Aniversário,,"2025-11-30 10:16:14",1,0,46,
+301,"Marciel rossetto",2025-12-03,23,12:29:00,21996169369,,,"Não definido",0,,,,"2025-11-30 10:17:40",1,0,46,
+302,"Marciel rossetto",2025-12-05,54,23:30:00,21996169369,,,"Não definido",0,,,,"2025-11-30 10:18:16",1,0,46,
+303,"Thiago Rocha",2026-02-10,12,12:00:00,21994561234,,,Única,0,20,"Cliente pediu sem restrições",,"2025-11-30 10:21:17",1,0,46,
+304,"Thiago Rocha",2026-02-11,14,12:00:00,21994561234,,,Única,0,20,"Cliente pediu sem restrições",,"2025-11-30 10:21:33",1,0,46,
+305,"Thiago Rocha",2026-02-13,15,12:00:00,21994561234,,,Única,0,20,"Cliente pediu sem restrições",,"2025-11-30 10:21:57",1,0,46,
+306,"Thiago Rocha",2026-02-15,56,20:00:00,21994561234,,,Única,0,20,"Cliente pediu sem restrições",,"2025-11-30 10:22:20",1,0,46,
+307,"Simone Alves",2026-02-24,11,19:05:00,21997441123,,,Crédito,0,23,Nenhuma,,"2025-11-30 10:28:16",1,0,46,
+308,"Ana Beatriz Silva",2026-02-02,4,13:00:00,21985471230,,,Crédito,0,15,"Prefere janela",,"2025-11-30 10:29:56",1,0,46,
+309,"Carlos Menezes",2026-02-03,2,19:30:00,21999351245,,,Débito,0,08,"Aniversário de casamento",,"2025-11-30 10:30:14",1,0,46,
+310,"Fernanda Lopes",2026-02-04,6,20:00:00,21988112348,,,Pix,0,12,"Balão mesa",,"2025-11-30 10:30:27",1,0,46,
+311,"Gustavo Almeida",2026-02-05,5,12:30:00,21994781233,,,Única,0,14,"Sem restrições",,"2025-11-30 10:30:44",1,0,46,
+312,"Mariana Costa",2026-02-06,3,21:00:00,21998744562,,,Crédito,0,03,"Quer atendimento rápido",,"2025-11-30 10:30:59",1,0,46,
+313,"Rafael Oliveira",2026-02-07,10,18:45:00,21992147782,,,Única,0,25,"Jantar empresarial",,"2025-11-30 10:31:17",1,0,46,
+314,"Juliana Martins",2026-02-08,7,11:45:00,21993652547,,,Pix,0,09,"Não consumir álcool",,"2025-11-30 10:31:32",1,0,46,
+315,"Pedro Henrique",2026-02-09,2,17:30:00,21995541236,,,Debito,0,02,Nenhuma,,"2025-11-30 10:31:43",1,0,46,
+316,"Lucas Vieira",2026-02-10,9,20:15:00,21997762331,,,Crédito,0,16,"Vegano na mesa",,"2025-11-30 10:31:54",1,0,46,
+317,"Bruno Silva",2026-02-11,5,19:00:00,21994151222,,,Pix,0,10,"Sem restrições",,"2025-11-30 10:32:06",1,0,46,
+318,"Letícia Ramos",2026-02-12,8,12:00:00,21985541356,,,Crédito,0,21,"Inclusão cadeira bebê",,"2025-11-30 10:32:15",1,0,46,
+319,"Juliana Martins",2026-02-08,47,11:45:00,21993652547,,,Pix,0,09,"Não consumir álcool",,"2025-11-30 10:34:23",1,0,46,
+320,"Felipe Rocha",2026-02-15,14,13:00:00,21988226234,,,Pix,0,30,"Almoço familiar",,"2025-11-30 10:34:47",1,0,46,
+321,"Felipe Rocha",2026-02-15,12,13:00:00,21988226234,,,Pix,0,30,"Almoço familiar",,"2025-11-30 10:35:07",1,0,46,
+322,"Priscila Arruda",2026-02-16,6,19:45:00,21995662134,,,Crédito,0,05,"Sem glúten",,"2025-11-30 10:35:23",1,0,46,
+323,"Ricardo Monte",2026-02-17,3,21:10:00,21993443322,,,Débito,0,04,Nenhuma,,"2025-11-30 10:35:37",1,0,46,
+324,"Patrícia Melo",2026-02-18,9,19:20:00,21992115562,,,Pix,0,18,"Festa surpresa",,"2025-11-30 10:35:49",1,0,46,
+325,"Diego Torres",2026-02-19,4,20:00:00,21994562387,,,Única,0,11,"Sem lactose",,"2025-11-30 10:36:02",1,0,46,
+326,"Tatiane Novaes",2026-02-20,10,12:30:00,21988334476,,,Crédito,0,22,"Reunião de negócios",,"2025-11-30 10:36:13",1,0,46,
+327,"Eduardo Campos",2026-02-21,29,17:45:00,21991222345,,,,0,13,"Sem restrições",,"2025-11-30 10:36:28",1,0,46,
+328,"Aline Ferreira",2026-02-22,5,18:30:00,21999662178,,,Débito,0,19,"Quer música ambiente",,"2025-11-30 10:36:38",1,0,46,
+329,"João Vitor",2026-02-23,2,12:15:00,21995541662,,,Única,0,06,Nenhuma,,"2025-11-30 10:36:49",1,0,46,
+330,"Simone Alves",2026-02-24,76,19:05:00,21997441123,,,Crédito,0,23,"Deseja decoração discreta",,"2025-11-30 10:37:14",1,0,46,
+331,"Fábio Santana",2026-02-25,8,20:40:00,21988332245,,,Pix,0,26,"Cliente recomendação gerente",,"2025-11-30 10:37:28",1,0,46,
+332,"Vanessa Pereira",2026-02-26,6,12:40:00,21991234466,,,Crédito,0,17,"Vegetarianos na mesa",,"2025-11-30 10:37:43",1,0,46,
+333,"Leonardo Nunes",2026-02-27,3,18:55:00,21994445533,,,Única,0,02,Nenhuma,,"2025-11-30 10:37:55",1,0,46,
+334,"Carolina Dias",2026-02-28,12,13:10:00,21989995511,,,Crédito,0,24,"Evento empresarial",,"2025-11-30 10:38:09",1,0,46,
+335,"Henrique Lopes",0000-00-00,4,19:10:00,21996332211,,,Débito,0,07,"Quer área externa",,"2025-11-30 10:38:20",1,0,46,
+336,"Daniela Rocha",0000-00-00,15,20:00:00,21988551123,,,Pix,0,28,"Cliente VIP (data ajustada)",,"2025-11-30 10:38:52",1,0,46,
+337,vitor,2025-12-22,78,18:45:00,21996070643,,,Única,0,"Salão 2","Cliente prefere mesa no salão",,"2025-11-30 13:50:21",1,0,44,
+338,vitor,2025-12-22,72,18:45:00,21996070643,,,"Não definido",0,"Salão 2","Cliente prefere mesa no salão",,"2025-11-30 13:53:49",1,0,44,
+339,"Marciel rossetto",2026-02-19,29,12:30:00,21996169369,,Casamento,"U (rod) I (beb)",113,11,Hsgsgsf,,"2025-11-30 14:05:02",0,0,44,"Problemas financeiros"
+340,vitor,2026-02-07,76,18:45:00,21996070643,,,,0,"Salão 2","Cliente prefere mesa no salão",,"2025-11-30 14:07:19",1,0,44,
+341,Livia,2025-11-30,20,21:03:00,21974972284,,Aniversario,"Não definido",0,1,,,"2025-11-30 16:04:28",1,0,46,
+342,Livia,2025-11-30,2,21:05:00,21974972284,,,,0,,,"Não paga 10%","2025-11-30 16:05:29",0,0,46,"Mudança de planos"
+343,"Pedro Santos",2026-01-23,6,18:45:00,21994561234,,,Única,0,"Salão 2","Cliente prefere mesa no salão 2",,"2025-11-30 16:36:28",1,0,46,
+344,"Leo knust",2025-12-01,4,18:30:00,21985347752,,"Conf. Familia","Não definido",113,,,,"2025-12-01 12:17:43",1,0,44,
+345,"Juliana paraquetta",2025-12-01,12,19:00:00,21999496089,,,,0,,,,"2025-12-01 12:19:30",1,0,44,
+346,"Luciano Carvalhoo",2025-12-01,4,19:30:00,21985394164,,,,0,,,,"2025-12-01 12:20:31",1,0,44,
+347,"Álvaro ou Letícia",2025-12-01,2,19:30:00,21978599973,,,"Não definido",0,,,,"2025-12-01 12:21:27",1,0,44,
+348,"Marciel rossetto",2025-12-02,58,12:00:00,21996169369,,Aniversario,unica,113,12,XCVBNZCVBN,"CLIENTE BOM","2025-12-01 18:18:19",0,0,44,"Falecimento na família"
+349,"Francilene de Araujo Silva",2025-12-02,54,16:22:00,21995114782,,,"Não definido",0,,,,"2025-12-01 18:22:43",1,0,44,
+350,"Camila Nogueira",2025-12-30,223,19:15:00,21994561234,,,,0,8,"Cliente virá com bebê",,"2025-12-01 18:24:45",1,0,44,
+351,"Thiago Rocha",2025-12-01,2,19:15:00,21994561235,,,"Não definido",0,8,"Cliente virá com bebê",,"2025-12-01 18:25:50",1,0,44,
+352,"Ricardo Moreira",2026-03-01,13,13:30:00,21994561234,,,"U (rod) I (beb)",0,"Salão 1","Quer mesa perto da janela,Por favor, envie os dados da sua reserva:",,"2025-12-01 18:36:40",1,0,44,
+353,"Ricardo Moreira",2026-02-01,194,13:30:00,21994561234,,,"U (rod) I (beb)",0,"Salão 1","Quer mesa perto da janela,Por favor, envie os dados da sua reserva:",,"2025-12-01 18:36:40",1,0,44,
+354,"Ricardo Moreira",2026-03-01,17,13:30:00,21994561234,,,"U (rod) I (beb)",0,"Salão 1","Quer mesa perto da janela",,"2025-12-01 18:36:40",1,0,44,
+355,"Ricardo Moreira",2026-03-01,10,13:30:00,21994561234,,,,0,"Salão 1","Quer mesa perto da janela",,"2025-12-01 18:38:41",1,0,44,
+356,"Ricardo Moreira",2026-03-01,10,13:30:00,21994561234,,,,0,"Salão 1","Quer mesa perto da janela",,"2025-12-01 18:39:05",1,0,44,
+357,"Ricardo Moreira",2026-03-01,10,13:30:00,21994561234,,,,0,"Salão 1","Quer mesa perto da janela",,"2025-12-01 18:39:14",1,0,44,
+358,"Ricardo Moreira",2026-03-01,101,13:30:00,21994561234,,,"U (rod) I (beb)",0,"Salão 1","Quer mesa perto da janela",,"2025-12-01 18:40:09",1,0,44,
+359,"Camila Nogueira",2026-01-30,263,19:15:00,21994561234,,,Outros,0,8,"Cliente virá com bebê,",,"2025-12-01 18:44:27",1,0,44,
+360,"Camila Nogueira",2026-01-30,27,19:15:00,21994561234,,,Outros,0,8,"Cliente virá com bebê,Por favor, envie os dados da sua reserva:",,"2025-12-01 18:44:27",1,0,44,
+361,"Camila Nogueira",2026-01-30,21,19:15:00,21994561234,,,Outros,0,8,"Cliente virá com bebê",,"2025-12-01 18:44:27",1,0,44,
+362,"Ricardo Moreira",2026-03-01,145,13:30:00,21994561234,,,"U (rod) I (beb)",0,"Salão 1","Quer mesa perto da janela",,"2025-12-01 18:47:25",1,0,44,
+363,"Ricardo Moreira",2026-03-01,145,13:30:00,21994561234,,,,0,"Salão 1","Quer mesa perto da janela",,"2025-12-01 18:48:33",1,0,44,
+364,"Ricardo Moreira ERTAL",2026-03-01,145,13:30:00,21994561234,,,,0,"Salão 1","Quer mesa perto da janela",,"2025-12-01 18:52:58",0,0,44,"Problemas financeiros"
+365,"Ricardo Moreira 2511",2025-12-02,98,12:22:00,21994561234,,,"Não definido",0,,,,"2025-12-01 18:53:38",1,0,44,
+366,"Ricardo Moreira",2026-03-05,10,13:30:00,21994561234,,,"U (rod) I (beb)",0,"Salão 1","Quer mesa perto da janela",,"2025-12-01 19:02:57",1,0,44,
+367,TAMIRES,2025-12-02,23,20:33:00,21999999998,,,unica,113,25,DSXZFGHADFGHADFGADFGAD,,"2025-12-01 19:05:26",1,0,44,
+368,"Marciel rossetto",2025-12-02,52,12:00:00,21996169369,,,"Não definido",0,,,"CLIENTE BOM","2025-12-01 19:14:53",0,0,44,"Problemas financeiros"
+369,"Francilene de Araujo Silva",2025-12-02,23,12:33:00,21995114782,,,unica,113,25,CVXZBNZXcvbSDFgvrsw,,"2025-12-01 19:24:03",1,0,44,
+370,"Ricardo Moreira",2025-12-05,452,12:22:00,21994561234,,,outros,0,"Próximo à janela",,,"2025-12-01 19:28:38",1,0,44,
+371,Marcos,2025-12-03,36,12:22:00,21994455887,,,"Não definido",0,,,,"2025-12-01 19:33:55",1,0,44,
+372,"Thiago Rocha",2025-12-01,44,01:38:00,21998877445,,,"Não definido",0,,,,"2025-12-01 19:38:04",1,0,44,
+373,"Marciel rossetto",2025-12-03,122,12:22:00,21996169369,21996169369,Aniversario,unica,113,"Próximo à janela",qsdefasdfasdfasdfasdfasdfasdfasdf,,"2025-12-01 19:48:38",1,0,44,
+374,"Marciel rossetto",2025-12-03,22,12:22:00,21996169369,,,"Não definido",0,,,,"2025-12-01 19:52:07",1,0,44,
+375,"Ricardo Moreira",2025-12-02,21,00:53:00,21994561234,,,"Não definido",0,,,,"2025-12-01 19:53:53",1,0,44,
