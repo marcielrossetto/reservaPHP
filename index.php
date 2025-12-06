@@ -7,520 +7,590 @@ if (empty($_SESSION['mmnlogin'])) {
     exit;
 }
 
+/* ============================================================
+   FUNÇÃO AUXILIAR: RENDERIZAR LISTA
+============================================================ */
+function renderizarListaReservas($pdo, $filtroData, $buscaTexto, $periodo)
+{
+    $sqlWhere = " WHERE status != 0 ";
+    $params = [];
+
+    if (!empty($filtroData)) {
+        $sqlWhere .= " AND data = :data ";
+        $params[':data'] = $filtroData;
+    }
+    if (!empty($buscaTexto)) {
+        $sqlWhere .= " AND (nome LIKE :texto OR telefone LIKE :texto OR id LIKE :texto) ";
+        $params[':texto'] = "%$buscaTexto%";
+    }
+
+    $tituloPeriodo = "Dia Completo";
+    if ($periodo === 'almoco') {
+        $sqlWhere .= " AND horario < '18:00:00'";
+        $tituloPeriodo = "Almoço";
+    } elseif ($periodo === 'jantar') {
+        $sqlWhere .= " AND horario >= '18:00:00'";
+        $tituloPeriodo = "Jantar";
+    }
+
+    // Totais
+    $sqlTotal = $pdo->prepare("SELECT SUM(num_pessoas) as total FROM clientes $sqlWhere");
+    $sqlTotal->execute($params);
+    $total_pessoas = $sqlTotal->fetch()['total'] ?? 0;
+
+    // Lista
+    $sql = $pdo->prepare("SELECT * FROM clientes $sqlWhere ORDER BY horario ASC");
+    $sql->execute($params);
+    $reservas = $sql->fetchAll(PDO::FETCH_ASSOC);
+
+    ob_start();
+    ?>
+    <!-- RESUMO DIA -->
+    <div class="alert alert-secondary py-2 px-3 d-flex justify-content-between align-items-center mb-3 shadow-sm"
+        style="font-size:0.9rem; border-radius:8px; border:none; background:#e9ecef;">
+        <span>
+            <i class="fas fa-calendar-day text-primary"></i> <strong><?= date('d/m', strtotime($filtroData)) ?></strong> -
+            <?= $tituloPeriodo ?>
+        </span>
+        <span class="badge bg-dark p-2">Total: <?= $total_pessoas ?></span>
+    </div>
+
+    <div class="lista-reservas-conteudo">
+        <?php if (count($reservas) > 0): ?>
+            <?php foreach ($reservas as $r):
+                $isConfirmado = ($r['confirmado'] == 1);
+                $classeBorda = $isConfirmado ? 'status-confirmado' : 'status-pendente';
+                $horaShort = date("H:i", strtotime($r['horario']));
+                $nome = ucwords(strtolower($r['nome']));
+                $telLimpo = preg_replace('/[^0-9]/', '', $r['telefone']);
+                $linkZapDireto = "https://wa.me/55$telLimpo";
+                $msgZap = "Olá $nome! Confirmando reserva para dia " . date('d/m', strtotime($r['data'])) . " às $horaShort para {$r['num_pessoas']} pessoas.";
+                $linkZapComMsg = "https://wa.me/55$telLimpo?text=" . urlencode($msgZap);
+
+                $obsTexto = empty($r['observacoes']) ? '<span class="text-muted small" style="font-style:italic">...</span>' : htmlspecialchars($r['observacoes']);
+                ?>
+                <!-- CARD -->
+                <div class="reserva-card <?= $classeBorda ?>" id="card-<?= $r['id'] ?>">
+
+                    <div class="card-content-wrapper">
+
+                        <!-- Badge -->
+                        <span class="badge-status <?= $isConfirmado ? 'badge-ok' : 'badge-wait' ?>">
+                            <?= $isConfirmado ? 'Confirmado' : 'Pendente' ?>
+                        </span>
+
+                        <!-- 1. NOME -->
+                        <div class="sec-info">
+                            <div class="client-name">
+                                <span class="id-reserva">#<?= $r['id'] ?></span> <?= htmlspecialchars($nome) ?>
+                            </div>
+                            <span class="btn-perfil" onclick="abrirModalPerfil('<?= $telLimpo ?>')">
+                                <i class="fas fa-history"></i> <span class="d-none d-md-inline">Histórico</span>
+                            </span>
+                        </div>
+
+                        <!-- 2. META DADOS (PAX + HORA) -->
+                        <div class="sec-meta-group">
+                            <div class="meta-item meta-pax">
+                                <span class="pax-val"><?= (int) $r['num_pessoas'] ?></span>
+                                <span class="pax-lbl">Pax</span>
+                            </div>
+                            <div class="meta-item meta-time">
+                                <span class="time-val"><?= $horaShort ?></span>
+                                <?php if (!empty($r['num_mesa'])): ?>
+                                    <span class="mesa-val">M:<?= $r['num_mesa'] ?></span>
+                                <?php endif; ?>
+                            </div>
+                        </div>
+
+                        <!-- 3. OBS (BOX QUADRADO) -->
+                        <div class="sec-obs-container">
+                            <div class="obs-box">
+                                <?= $obsTexto ?>
+                            </div>
+                        </div>
+
+                    </div>
+
+                    <!-- BOTÃO TOGGLE (Mobile) -->
+                    <button class="btn-mobile-toggle" onclick="toggleActions(<?= $r['id'] ?>)">
+                        <i class="fas fa-ellipsis-v"></i>
+                    </button>
+
+                    <!-- AÇÕES (MENU LATERAL) -->
+                    <div class="sec-actions">
+                        <button class="btn-close-actions d-lg-none" onclick="toggleActions(<?= $r['id'] ?>)">
+                            <i class="fas fa-times"></i>
+                        </button>
+                        <div class="actions-scroll-wrapper">
+                            <button class="btn-action btn-whatsapp"
+                                onclick="abrirModalZap(<?= $r['id'] ?>, '<?= $linkZapComMsg ?>', '<?= $linkZapDireto ?>')">
+                                <i class="fab fa-whatsapp"></i> <span class="d-none d-lg-inline">Zap</span>
+                            </button>
+                            <a href="editar_reserva.php?id=<?= $r['id'] ?>" class="btn-action">
+                                <i class="fas fa-pen text-primary"></i> <span class="d-none d-lg-inline">Editar</span>
+                            </a>
+                            <a href="excluir_reserva.php?id=<?= $r['id'] ?>" class="btn-action" onclick="return confirm('Excluir?')">
+                                <i class="fas fa-trash text-danger"></i> <span class="d-none d-lg-inline">Excluir</span>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            <?php endforeach; ?>
+        <?php else: ?>
+            <div class="text-center py-4 text-muted">Nenhuma reserva encontrada.</div>
+        <?php endif; ?>
+    </div>
+
+    <div id="print-data-hidden" style="display:none;">
+        <div class="print-header">
+            <h3>Lista de Reservas</h3>
+            <p><?= date('d/m/Y', strtotime($filtroData)) ?> | <?= $tituloPeriodo ?></p>
+        </div>
+        <table class="print-table" style="width:100%; border-collapse:collapse; font-size:10pt; font-family:Arial;">
+            <thead>
+                <tr><th>ID</th><th>Nome</th><th>Qtd</th><th>Hora</th><th>Obs</th><th>Mesa</th></tr>
+            </thead>
+            <tbody>
+                <?php foreach ($reservas as $r): ?>
+                    <tr>
+                        <td style="border:1px solid #000;padding:4px;"><?= htmlspecialchars($r['id']) ?></td>
+                        <td style="border:1px solid #000;padding:4px;"><?= htmlspecialchars($r['nome']) ?></td>
+                        <td style="border:1px solid #000;padding:4px; text-align:center;"><?= (int) $r['num_pessoas'] ?></td>
+                        <td style="border:1px solid #000;padding:4px; text-align:center;"><?= date("H:i", strtotime($r['horario'])) ?></td>
+                        <td style="border:1px solid #000;padding:4px;"><?= htmlspecialchars($r['observacoes']) ?></td>
+                        <td style="border:1px solid #000;padding:4px; text-align:center;"><?= htmlspecialchars($r['num_mesa'] ?? '') ?></td>
+                    </tr>
+                <?php endforeach; ?>
+            </tbody>
+        </table>
+    </div>
+    <?php
+    return ob_get_clean();
+}
+
+// AJAX HANDLERS
+if (isset($_GET['acao']) && $_GET['acao'] === 'listar_ajax') {
+    echo renderizarListaReservas($pdo, $_GET['filtro_data'] ?? date('Y-m-d'), $_GET['busca_texto'] ?? '', $_GET['periodo'] ?? 'todos');
+    exit;
+}
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao']) && $_POST['acao'] === 'confirmar_reserva') {
+    $id = $_POST['id'] ?? null;
+    echo json_encode(['success' => ($id && $pdo->prepare("UPDATE clientes SET confirmado = 1 WHERE id = :id")->execute([':id' => $id]))]);
+    exit;
+}
+if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao']) && $_GET['acao'] === 'ver_perfil') {
+    $tel = preg_replace('/\D/', '', $_GET['telefone'] ?? '');
+    $stats = $pdo->prepare("SELECT COUNT(*) as total_reservas, SUM(CASE WHEN status = 0 THEN 1 ELSE 0 END) as total_canceladas, SUM(num_pessoas) as total_pessoas_trazidas FROM clientes WHERE telefone LIKE :tel");
+    $stats->execute([':tel' => "%$tel%"]);
+    $hist = $pdo->prepare("SELECT data, num_pessoas, observacoes, status FROM clientes WHERE telefone LIKE :tel ORDER BY data DESC LIMIT 5");
+    $hist->execute([':tel' => "%$tel%"]);
+    echo json_encode(['stats' => $stats->fetch(PDO::FETCH_ASSOC), 'historico' => $hist->fetchAll(PDO::FETCH_ASSOC)]);
+    exit;
+}
+
 require 'cabecalho.php';
-include 'lembrete_backup.php';
 
-// --- FUNÇÕES PHP (Apenas para carga inicial do calendário) ---
+$filtroData = $_REQUEST['filtro_data'] ?? date('Y-m-d');
+$buscaTexto = $_REQUEST['busca_texto'] ?? '';
+$periodo = $_REQUEST['periodo'] ?? 'todos';
 
-function getReservations($pdo, $month, $year) {
-    $stmt = $pdo->prepare("
-        SELECT 
-            data,
-            SUM(CASE WHEN horario BETWEEN '11:00:00' AND '17:59:00' THEN IF(status != 0, num_pessoas, 0) ELSE 0 END) AS almoco,
-            SUM(CASE WHEN horario BETWEEN '18:00:00' AND '23:59:00' THEN IF(status != 0, num_pessoas, 0) ELSE 0 END) AS jantar
-        FROM clientes 
-        WHERE MONTH(data) = :month AND YEAR(data) = :year
-        GROUP BY data
-    ");
-    $stmt->execute(['month' => $month, 'year' => $year]);
-    return $stmt->fetchAll(PDO::FETCH_ASSOC);
-}
-
-// Busca dados iniciais de HOJE para exibir ao carregar a página
-function getDayStats($pdo, $date) {
-    $stmt = $pdo->prepare("
-        SELECT 
-            SUM(CASE WHEN horario BETWEEN '11:00:00' AND '17:59:00' THEN IF(status != 0, num_pessoas, 0) ELSE 0 END) AS almoco,
-            SUM(CASE WHEN horario BETWEEN '18:00:00' AND '23:59:00' THEN IF(status != 0, num_pessoas, 0) ELSE 0 END) AS jantar,
-            SUM(IF(status != 0, num_pessoas, 0)) AS total
-        FROM clientes
-        WHERE data = :data
-    ");
-    $stmt->execute(['data' => $date]);
-    $res = $stmt->fetch(PDO::FETCH_ASSOC);
-    return $res ?: ['almoco' => 0, 'jantar' => 0, 'total' => 0];
-}
-
-// --- CONFIGURAÇÃO DO CALENDÁRIO ---
-
-$month = isset($_GET['month']) ? (int)$_GET['month'] : (int)date('m');
-$year  = isset($_GET['year'])  ? (int)$_GET['year']  : (int)date('Y');
-
-if ($month < 1) { $month = 12; $year--; }
-elseif ($month > 12) { $month = 1; $year++; }
-
-$reservationsMap = [];
-$rawReservations = getReservations($pdo, $month, $year);
-foreach ($rawReservations as $res) {
-    $reservationsMap[$res['data']] = $res;
-}
-
-// Dados iniciais (hoje)
-$todayDate = date('Y-m-d');
-$todayStats = getDayStats($pdo, $todayDate);
-
-function generateCalendar($month, $year, $reservationsMap) {
-    $daysOfWeek = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
-    $firstDayTimestamp = mktime(0, 0, 0, $month, 1, $year);
-    $numberDays = date('t', $firstDayTimestamp);
-    $dateComponents = getdate($firstDayTimestamp);
-    $dayOfWeek = $dateComponents['wday'];
+// CALENDÁRIO
+function generateCalendar(PDO $pdo, int $month, int $year): string
+{
+    global $filtroData, $buscaTexto, $periodo;
+    $stmt = $pdo->prepare("SELECT data, SUM(CASE WHEN horario BETWEEN '11:00:00' AND '17:59:00' THEN IF(status!=0, num_pessoas, 0) ELSE 0 END) AS almoco, SUM(CASE WHEN horario BETWEEN '18:00:00' AND '23:59:00' THEN IF(status!=0, num_pessoas, 0) ELSE 0 END) AS jantar FROM clientes WHERE MONTH(data) = :m AND YEAR(data) = :y GROUP BY data");
+    $stmt->execute(['m' => $month, 'y' => $year]);
+    $map = [];
+    while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) $map[$row['data']] = $row;
+    $stmtTotal = $pdo->prepare("SELECT COUNT(*) as total_res, SUM(num_pessoas) as total_pax FROM clientes WHERE MONTH(data) = :m AND YEAR(data) = :y AND status != 0");
+    $stmtTotal->execute(['m' => $month, 'y' => $year]);
+    $totaisMes = $stmtTotal->fetch(PDO::FETCH_ASSOC);
+    $totalPaxMes = $totaisMes['total_pax'] ?? 0;
+    $totalResMes = $totaisMes['total_res'] ?? 0;
     
-    $monthNames = [1=>'Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
-    $monthName = $monthNames[$month];
-
-    $html = "<div class='calendar-container'>";
-    $html .= "<div class='calendar-header-flex'>";
-    $html .= "  <h2 class='month-title'>$monthName <span class='year-subtitle'>$year</span></h2>";
-    $html .= "</div>";
-
-    $html .= "<div class='table-responsive'>";
-    $html .= "<table class='calendar-table'>";
-    $html .= "<thead><tr>";
-    foreach ($daysOfWeek as $day) {
-        $html .= "<th>$day</th>";
-    }
-    $html .= "</tr></thead><tbody><tr>";
-
-    if ($dayOfWeek > 0) {
-        for ($i = 0; $i < $dayOfWeek; $i++) {
-            $html .= "<td class='empty'></td>";
-        }
-    }
-
-    $currentDay = 1;
+    $firstDayTs = mktime(0, 0, 0, $month, 1, $year);
+    $numDays = (int) date('t', $firstDayTs);
+    $dayOfWeek = (int) date('w', $firstDayTs);
     $today = date('Y-m-d');
-
-    while ($currentDay <= $numberDays) {
-        if ($dayOfWeek == 7) {
-            $dayOfWeek = 0;
-            $html .= "</tr><tr>";
-        }
-
-        $currentDate = sprintf('%04d-%02d-%02d', $year, $month, $currentDay);
-        $almoco = $reservationsMap[$currentDate]['almoco'] ?? 0;
-        $jantar = $reservationsMap[$currentDate]['jantar'] ?? 0;
-        
-        $isToday = ($currentDate === $today) ? 'today-cell' : '';
-
-        $html .= "<td class='day-cell $isToday'>";
-        
-        // Header da célula: Número Clicável + Olho
-        $html .= "  <div class='day-number-row'>";
-        // AQUI ESTÁ A MUDANÇA: O número chama a função carregarResumo
-        $html .= "      <button class='btn-day-number' onclick=\"carregarResumo('$currentDate')\">$currentDay</button>";
-        $html .= "      <button class='btn-view-day' onclick=\"verReservasDia('$currentDate', event)\"><i class='material-icons'>visibility</i></button>";
-        $html .= "  </div>";
-
-        $html .= "  <div class='stats-column'>";
-        if ($almoco > 0) {
-            $html .= " <span class='pill pill-almoco'>A: $almoco</span>";
-        }
-        if ($jantar > 0) {
-            $html .= " <span class='pill pill-jantar'>J: $jantar</span>";
-        }
-        $html .= "  </div>";
-        
-        $html .= "</td>";
-
-        $currentDay++;
-        $dayOfWeek++;
+    $prevM = $month - 1; $prevY = $year; if ($prevM < 1) { $prevM = 12; $prevY--; }
+    $nextM = $month + 1; $nextY = $year; if ($nextM > 12) { $nextM = 1; $nextY++; }
+    $q = http_build_query(['filtro_data' => $filtroData, 'busca_texto' => $buscaTexto, 'periodo' => $periodo]);
+    $monthName = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"][$month - 1] ?? $month;
+    
+    $html = "<div class='calendar-container'><div class='cal-header-modern'><a href='?month=$prevM&year=$prevY&$q' class='btn-nav-cal'><i class='fas fa-chevron-left'></i></a><div class='cal-title-group'><span class='cal-month-year'>{$monthName} {$year}</span><div class='cal-stats-badges'><span title='Total de Pessoas'><i class='fas fa-users'></i> {$totalPaxMes}</span><span class='divider'>•</span><span title='Total de Reservas'><i class='fas fa-file-alt'></i> {$totalResMes}</span></div></div><a href='?month=$nextM&year=$nextY&$q' class='btn-nav-cal'><i class='fas fa-chevron-right'></i></a></div><div class='table-responsive'><table class='cal-table'><thead><tr><th>Dom</th><th>Seg</th><th>Ter</th><th>Qua</th><th>Qui</th><th>Sex</th><th>Sáb</th></tr></thead><tbody><tr>";
+    if ($dayOfWeek > 0) { for ($i = 0; $i < $dayOfWeek; $i++) $html .= "<td class='empty'></td>"; }
+    $d = 1;
+    while ($d <= $numDays) {
+        if ($dayOfWeek == 7) { $dayOfWeek = 0; $html .= "</tr><tr>"; }
+        $currDate = sprintf('%04d-%02d-%02d', $year, $month, $d);
+        $alm = $map[$currDate]['almoco'] ?? 0;
+        $jan = $map[$currDate]['jantar'] ?? 0;
+        $cls = ($currDate === $today) ? 'today' : '';
+        if ($currDate === $filtroData) $cls .= ' selected';
+        $html .= "<td class='day-cell $cls' onclick=\"mudarData('$currDate', this)\"><div class='d-flex justify-content-between align-items-start'><span class='day-num'>$d</span><button class='btn-eye-sm' onclick=\"verReservasDia('$currDate', event)\"><i class='fas fa-eye'></i></button></div><div class='pills-container'>";
+        if ($alm > 0) $html .= "<span class='pill pill-a'>A: $alm</span>";
+        if ($jan > 0) $html .= "<span class='pill pill-j'>J: $jan</span>";
+        $html .= "  </div></td>";
+        $d++; $dayOfWeek++;
     }
-
-    if ($dayOfWeek != 7) {
-        $remainingDays = 7 - $dayOfWeek;
-        for ($i = 0; $i < $remainingDays; $i++) {
-            $html .= "<td class='empty'></td>";
-        }
-    }
-
-    $html .= "</tr></tbody></table>";
-    $html .= "</div></div>";
-
+    if ($dayOfWeek != 7) { for ($i = 0; $i < (7 - $dayOfWeek); $i++) $html .= "<td class='empty'></td>"; }
+    $html .= "</tr></tbody></table></div></div>";
     return $html;
 }
+
+$refMes = isset($_GET['month']) ? (int) $_GET['month'] : (int) date('m', strtotime($filtroData));
+$refAno = isset($_GET['year']) ? (int) $_GET['year'] : (int) date('Y', strtotime($filtroData));
+$calendarHtml = generateCalendar($pdo, $refMes, $refAno);
 ?>
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt-br">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Calendário de Reservas</title>
-    
-    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
-    
+    <title>Gestão de Reservas</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        :root {
-            --bg-color: #f4f6f9;
-            --card-bg: #ffffff;
-            --text-main: #2d3436;
-            --text-muted: #636e72;
-            --primary: #0984e3;
-            --accent-almoco: #fdcb6e;
-            --text-almoco: #d35400;
-            --accent-jantar: #74b9ff;
-            --text-jantar: #0984e3;
-            --border-radius: 12px;
-        }
-
-        body {
-            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-            background-color: var(--bg-color);
-            color: var(--text-main);
-            margin: 0;
-            padding: 80px 15px 100px 15px;
-        }
-
-        .main-container { max-width: 1200px; margin: 0 auto; }
-
-        /* NAVEGAÇÃO */
-        .top-controls {
-            display: flex; justify-content: space-between; align-items: center;
-            flex-wrap: wrap; gap: 15px; margin-bottom: 20px;
-        }
-        .nav-group { display: flex; gap: 10px; }
-        .btn-nav {
-            background: var(--card-bg); border: 1px solid #dfe6e9; padding: 8px 15px;
-            border-radius: 20px; cursor: pointer; display: flex; align-items: center; gap: 5px;
-            font-weight: 600; color: var(--text-muted); box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-            transition: all 0.2s;
-        }
-        .btn-nav:hover { transform: translateY(-2px); color: var(--primary); }
-        .btn-primary-action { background: var(--primary); color: #fff; border: none; }
-        .btn-primary-action:hover { background: #0769b5; color:#fff;}
+        body { background-color: #f0f2f5; font-family: 'Inter', 'Segoe UI', sans-serif; padding-bottom: 60px; }
 
         /* CALENDÁRIO */
-        .calendar-container {
-            background: var(--card-bg); border-radius: var(--border-radius);
-            box-shadow: 0 4px 20px rgba(0,0,0,0.05); padding: 20px; margin-bottom: 30px;
-        }
-        .calendar-header-flex {
-            display: flex; justify-content: space-between; align-items: center;
-            margin-bottom: 15px; border-bottom: 2px solid #f1f2f6; padding-bottom: 10px;
-        }
-        .month-title { margin: 0; font-size: 1.5rem; text-transform: capitalize; }
-        .year-subtitle { font-weight: 300; color: var(--text-muted); margin-left: 5px; }
+        :root { --cal-bg: #212529; --cal-header: #2c3034; --cal-cell: #2c3034; --cal-hover: #343a40; --cal-text: #e9ecef; --cal-muted: #adb5bd; --accent: #0d6efd; --pill-a: #ffc107; --pill-j: #0dcaf0; }
+        #cal-wrapper { overflow: hidden; max-height: 1200px; opacity: 1; transition: max-height 0.5s ease-in-out, opacity 0.4s ease-in-out; margin-bottom: 0; }
+        #cal-wrapper.collapsed { max-height: 0; opacity: 0; }
+        .calendar-container { background: var(--cal-bg); color: var(--cal-text); border-radius: 12px; box-shadow: 0 8px 16px rgba(0,0,0,0.2); padding: 0; overflow: hidden; max-width: 900px; margin: 0 auto; }
+        .cal-header-modern { background: var(--cal-header); padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #3d4146; }
+        .cal-title-group { text-align: center; display: flex; flex-direction: column; align-items: center; }
+        .cal-month-year { font-size: 1.25rem; font-weight: 700; text-transform: capitalize; color: #fff; margin-bottom: 2px; }
+        .cal-stats-badges { font-size: 0.85rem; color: var(--cal-muted); display: flex; align-items: center; gap: 8px; }
+        .cal-stats-badges i { color: var(--accent); margin-right: 3px; }
+        .btn-nav-cal { color: var(--cal-muted); font-size: 1.1rem; width: 35px; height: 35px; display: flex; align-items: center; justify-content: center; border-radius: 50%; transition: 0.2s; text-decoration: none; background: rgba(255,255,255,0.05); }
+        .btn-nav-cal:hover { background: rgba(255,255,255,0.15); color: #fff; }
+        .cal-table { width: 100%; table-layout: fixed; border-collapse: collapse; }
+        .cal-table th { text-align: center; color: var(--cal-muted); font-size: 0.75rem; text-transform: uppercase; padding: 8px 0; background: var(--cal-bg); }
+        .cal-table td { background: var(--cal-cell); border: 1px solid #3d4146; height: 60px; vertical-align: top; padding: 4px; cursor: pointer; transition: background 0.2s; position: relative; }
+        .cal-table td:not(.empty):hover { background: var(--cal-hover); }
+        .cal-table td.today { background: #3c4149; border: 1px solid var(--accent); }
+        .cal-table td.selected { background: #495057; box-shadow: inset 0 0 0 1px #fff; }
+        .day-num { font-size: 0.85rem; font-weight: 600; color: #fff; margin-left: 2px; }
+        .btn-eye-sm { background: none; border: none; padding: 0; color: var(--cal-muted); width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; transition: 0.2s; }
+        .btn-eye-sm:hover { color: #fff; background: rgba(255,255,255,0.2); }
+        .pills-container { display: flex; justify-content: flex-start; gap: 3px; margin-top: 2px; flex-wrap: wrap; }
+        .pill { font-size: 0.65rem; padding: 1px 5px; border-radius: 4px; font-weight: 700; color: #000; line-height: 1; display: inline-block; }
+        .pill-a { background: var(--pill-a); } .pill-j { background: var(--pill-j); }
+        .toggle-cal-container { text-align: center; margin-top: -10px; margin-bottom: 20px; position: relative; z-index: 10; }
+        .btn-toggle-cal { background: var(--cal-header); color: var(--cal-muted); border: 1px solid #3d4146; border-top: none; padding: 5px 20px; font-size: 0.8rem; border-bottom-left-radius: 12px; border-bottom-right-radius: 12px; cursor: pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.1); transition: 0.2s; }
+        .btn-toggle-cal:hover { background: var(--cal-hover); color: #fff; }
 
-        .table-responsive { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-        .calendar-table { width: 100%; border-collapse: collapse; min-width: 600px; }
-        .calendar-table th {
-            text-align: center; padding: 10px; color: var(--text-muted);
-            text-transform: uppercase; font-size: 0.85rem; letter-spacing: 1px;
-        }
-        .calendar-table td {
-            border: 1px solid #f1f2f6; height: 100px; vertical-align: top;
-            padding: 8px; width: 14.28%; transition: background 0.2s;
-        }
-        .calendar-table td:not(.empty):hover { background-color: #f8fbff; }
-        .today-cell { background-color: #e3f2fd !important; border: 2px solid var(--primary) !important; }
+        .filter-bar { background: #fff; padding: 15px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); margin-bottom: 20px; }
 
-        .day-number-row { display: flex; justify-content: space-between; margin-bottom: 5px; }
+        /* LISTA E CARDS */
+        .reserva-card { background: #fff; border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.05); margin-bottom: 12px; border-left: 5px solid #ccc; position: relative; padding: 5px 10px; display: flex; align-items: center; flex-wrap: nowrap; transition: 0.2s; }
+        .status-confirmado { border-left-color: #198754 !important; }
+        .status-pendente { border-left-color: #fd7e14 !important; }
+        .card-content-wrapper { display: contents; width: 100%; }
 
-        /* Botão do dia (número) */
-        .btn-day-number {
-            background: none; border: none; font-weight: 700; font-size: 1.1rem;
-            color: var(--text-main); cursor: pointer; padding: 0;
-            text-decoration: underline; text-decoration-color: transparent;
-            transition: 0.2s;
-        }
-        .btn-day-number:hover { color: var(--primary); text-decoration-color: var(--primary); transform: scale(1.1); }
+        .sec-info { flex: 2; padding: 8px; display: flex; flex-direction: column; justify-content: center; }
+        .client-name { font-weight: 700; color: #333; font-size: 1rem; }
+        .id-reserva { color: #999; font-weight: 800; font-size: 0.85rem; }
+        .btn-perfil { font-size: 0.75rem; color: var(--accent); cursor: pointer; text-decoration: none; font-weight: 600; margin-top: 2px; }
 
-        .btn-view-day { background: none; border: none; cursor: pointer; color: #b2bec3; padding: 0; }
-        .btn-view-day:hover { color: var(--primary); }
-        .btn-view-day .material-icons { font-size: 18px; }
+        .sec-meta-group { flex: 2; display: flex; align-items: center; justify-content: space-evenly; }
+        .meta-item { display: flex; flex-direction: column; align-items: center; justify-content: center; border-left: 1px solid #f0f0f0; padding: 0 10px; min-width: 70px; }
+        .pax-val { font-size: 1.4rem; font-weight: 800; color: #fd7e14; line-height: 1; }
+        .pax-lbl { font-size: 0.7rem; color: #888; text-transform: uppercase; }
+        .time-val { font-size: 1.2rem; font-weight: 700; color: #333; }
+        .mesa-val { font-size: 0.75rem; background: #eee; padding: 1px 6px; border-radius: 4px; color: #555; margin-top: 2px; }
 
-        .stats-column { display: flex; flex-direction: column; gap: 4px; }
-        .pill { font-size: 0.75rem; padding: 3px 6px; border-radius: 4px; font-weight: 600; white-space: nowrap; }
-        .pill-almoco { background-color: var(--accent-almoco); color: var(--text-almoco); }
-        .pill-jantar { background-color: var(--accent-jantar); color: #1e3799; }
+        .sec-obs-container { flex: 3; padding: 8px 15px; display: flex; align-items: center; justify-content: center; }
+        .obs-box { background-color: #fcfcfc; border: 1px solid #dee2e6; border-radius: 6px; padding: 6px 10px; font-size: 0.8rem; color: #666; width: 100%; max-width: 320px; height: 60px; overflow-y: auto; white-space: normal; }
+        .obs-box::-webkit-scrollbar { width: 4px; }
+        .obs-box::-webkit-scrollbar-track { background: #f1f1f1; }
+        .obs-box::-webkit-scrollbar-thumb { background: #ccc; border-radius: 4px; }
 
-        /* CARDS RESUMO */
-        .summary-title {
-            font-size: 1.2rem; margin-bottom: 15px; color: var(--text-muted);
-            display: flex; align-items: center; gap: 8px;
-        }
-        .cards-grid {
-            display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 20px; margin-bottom: 40px;
-        }
-        .stat-card {
-            background: var(--card-bg); padding: 20px; border-radius: var(--border-radius);
-            box-shadow: 0 4px 15px rgba(0,0,0,0.05); display: flex; align-items: center; gap: 15px;
-            position: relative; overflow: hidden; transition: transform 0.2s;
-        }
-        .stat-card:hover { transform: translateY(-3px); }
-        .stat-card::after {
-            content: ''; position: absolute; right: 0; top: 0; bottom: 0; width: 6px;
-        }
-        .card-orange::after { background: var(--accent-almoco); }
-        .card-blue::after { background: var(--primary); }
-        .card-green::after { background: #00b894; }
+        .badge-status { position: absolute; top: 8px; right: 10px; font-size: 0.65rem; padding: 2px 6px; border-radius: 4px; font-weight: bold; text-transform: uppercase; z-index: 5; }
+        .badge-ok { background: #d1e7dd; color: #0f5132; }
+        .badge-wait { background: #fff3cd; color: #664d03; }
 
-        .icon-box {
-            width: 50px; height: 50px; border-radius: 50%; display: flex;
-            align-items: center; justify-content: center; font-size: 24px;
-        }
-        .ib-orange { background: #fff3e0; color: #e67e22; }
-        .ib-blue { background: #e3f2fd; color: var(--primary); }
-        .ib-green { background: #e6fffa; color: #00b894; }
+        .sec-actions { flex: 1; display: flex; flex-direction: column; gap: 4px; padding: 8px; min-width: 110px; }
+        .btn-action { width: 100%; border: 1px solid #dee2e6; background: #fff; color: #555; border-radius: 4px; padding: 4px; font-size: 0.8rem; cursor: pointer; text-align: center; text-decoration: none; transition: 0.2s; display: flex; align-items: center; justify-content: center; gap: 5px; }
+        .btn-action:hover { background: #f8f9fa; }
+        .btn-whatsapp { color: #198754; border-color: #198754; }
+        .btn-whatsapp:hover { background: #198754; color: #fff; }
+        .btn-mobile-toggle, .btn-close-actions { display: none; }
 
-        .stat-info h4 { margin: 0 0 5px 0; font-size: 0.9rem; color: var(--text-muted); text-transform: uppercase; }
-        .stat-info .value { font-size: 1.8rem; font-weight: 800; color: var(--text-main); line-height: 1; }
-        .stat-info small { font-size: 0.8rem; color: #b2bec3; }
+        /* ========= CORREÇÃO DO MODAL FANTASMA ========== */
+        .modal-overlay-dia { 
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0; 
+            background: rgba(0,0,0,0.6); z-index: 2000; 
+            display: none; /* Garante que comece escondido */
+            justify-content: center; align-items: center; backdrop-filter: blur(2px); 
+        }
+        .modal-box-dia { background: #fff; width: 90%; max-width: 450px; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); overflow: hidden; display: flex; flex-direction: column; max-height: 85vh; }
+        .modal-header-dia { padding: 15px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; background: #f8f9fa; }
+        .modal-body-dia { padding: 0; overflow-y: auto; }
+        .reserva-item { padding: 12px 15px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
 
-        /* MODAL */
-        .modal-overlay {
-            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(0,0,0,0.5); z-index: 1000; display: none;
-            justify-content: center; align-items: center; backdrop-filter: blur(3px);
-        }
-        .modal-box {
-            background: #fff; width: 90%; max-width: 500px; border-radius: 15px;
-            padding: 0; box-shadow: 0 10px 40px rgba(0,0,0,0.2); animation: slideUp 0.3s ease;
-            max-height: 80vh; display: flex; flex-direction: column;
-        }
-        .modal-header {
-            padding: 15px 20px; border-bottom: 1px solid #f1f2f6; display: flex;
-            justify-content: space-between; align-items: center;
-        }
-        .modal-header h3 { margin: 0; font-size: 1.1rem; }
-        .btn-close { background: none; border: none; font-size: 24px; cursor: pointer; color: #999; }
-        .modal-body { padding: 20px; overflow-y: auto; }
-        .reserva-item {
-            padding: 10px; border-bottom: 1px solid #f1f2f6; display: flex;
-            justify-content: space-between; align-items: center;
-        }
-        .res-name { font-weight: 600; display: block; }
-        .res-details { font-size: 0.85rem; color: #636e72; }
-        .res-actions a { text-decoration: none; margin-left: 10px; color: var(--primary); font-weight: 600; font-size: 0.85rem; }
+        /* MOBILE (Max 991px) */
+        @media (max-width: 991px) {
+            .reserva-card { height: 110px; padding: 4px; padding-right: 35px; display: block; border-left-width: 4px; }
+            .card-content-wrapper { display: grid; grid-template-rows: 25px 1fr; grid-template-columns: 90px 1fr; height: 100%; gap: 0; }
+            
+            .badge-status { top: 3px; right: 40px; font-size: 0.55rem; padding: 1px 3px; }
+            
+            .sec-info { grid-row: 1 / 2; grid-column: 1 / 3; padding: 0 4px; border: none; border-bottom: 1px dashed #f0f0f0; justify-content: flex-end; }
+            .client-name { font-size: 0.75rem !important; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+            .btn-perfil { display: none; }
 
-        @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
-        @keyframes spin { 100% { transform:rotate(360deg); } }
+            .sec-meta-group { grid-row: 2 / 3; grid-column: 1 / 2; display: flex; flex-direction: column; alignItems: flex-start; justify-content: center; border-right: 1px solid #eee; padding: 0 5px; gap: 2px; }
+            .meta-item { border: none; padding: 0; min-width: 0; align-items: flex-start; flex-direction: row; gap: 4px; }
+            .meta-pax .pax-val { font-size: 1.1rem; }
+            .meta-pax .pax-lbl { font-size: 0.65rem; margin-top: 3px; }
+            .meta-time .time-val { font-size: 0.95rem; }
+            .meta-time .mesa-val { display: none !important; }
 
-        .fab {
-            position: fixed; bottom: 20px; right: 20px; background: var(--primary);
-            color: white; width: 60px; height: 60px; border-radius: 50%;
-            display: flex; align-items: center; justify-content: center;
-            box-shadow: 0 4px 15px rgba(9, 132, 227, 0.4); cursor: pointer;
-            border: none; z-index: 99; transition: transform 0.2s;
-        }
-        .fab:hover { transform: scale(1.1); }
+            /* Ajuste da Obs Box Mobile */
+         .sec-obs-container {
+    grid-row: 1 / 3;
+    grid-column: 2 / 3;
+    padding: 6px;
+    height: 100%;       /* mesma altura do card */
+    display: flex;
+}
+.obs-box {
+    width: 40%;         /* metade da largura */
+    height: 100%;       /* mesma altura */
+    max-width: none;
+    font-size: 0.75rem;
+    padding: 4px 6px;
+    background: #fdfdfd;
+    border: 1px solid #e0e0e0;
+    overflow-y: auto;   /* scroll vertical */
+    overflow-x: hidden; /* evita scroll horizontal */
+    border-radius: 6px;
+}
+            .btn-mobile-toggle { display: flex; position: absolute; top: 0; right: 0; bottom: 0; width: 30px; background: #f8f9fa; border: none; border-left: 1px solid #eee; align-items: center; justify-content: center; color: #888; font-size: 1rem; cursor: pointer; z-index: 6; }
 
-        @media (max-width: 768px) {
-            .top-controls { justify-content: center; }
-            .calendar-container { padding: 10px; }
-            .calendar-table td { height: 80px; padding: 4px; }
-            .cards-grid { grid-template-columns: 1fr; }
+            /* MENU LATERAL COM SCROLL */
+            .sec-actions {
+                position: fixed; top: 0; right: 0; bottom: 0; width: 220px; 
+                height: 100vh; background: white; z-index: 9999;
+                flex-direction: column; padding: 50px 10px 20px 10px;
+                box-shadow: -5px 0 15px rgba(0,0,0,0.1);
+                transform: translateX(100%); transition: transform 0.3s ease-in-out;
+                overflow-y: auto;
+            }
+            .reserva-card.show-menu .sec-actions { transform: translateX(0); }
+            
+            .btn-close-actions { display: flex; position: absolute; top: 10px; right: 10px; width: 30px; height: 30px; border: none; background: #f0f0f0; border-radius: 50%; color: #333; align-items: center; justify-content: center; font-size: 1rem; cursor: pointer; z-index: 10000; }
+            .btn-action { width: 100%; height: 45px; margin-bottom: 8px; font-size: 0.9rem; justify-content: flex-start; padding-left: 20px; }
+            
+            /* Ajuste Filtros Mobile */
+            .filter-bar { display: flex; flex-direction: row; flex-wrap: wrap; gap: 10px; }
+            .filter-bar .col-md-3 { flex: 1 1 45%; min-width: 140px; } 
+            .filter-bar button, .filter-bar a { width: 100%; }
         }
     </style>
 </head>
+
 <body>
 
-<div class="main-container">
+    <div class="container-fluid mt-3 no-print">
 
-    <div class="top-controls">
-        <div class="nav-group">
-            <form method="GET" style="display:contents">
-                <input type="hidden" name="month" value="<?= $month - 1 ?>">
-                <input type="hidden" name="year" value="<?= $year ?>">
-                <button class="btn-nav"><i class="material-icons">chevron_left</i> Ant</button>
-            </form>
-            
-            <form method="GET" style="display:contents">
-                <input type="hidden" name="month" value="<?= $month + 1 ?>">
-                <input type="hidden" name="year" value="<?= $year ?>">
-                <button class="btn-nav">Próx <i class="material-icons">chevron_right</i></button>
-            </form>
+        <!-- WRAPPER CALENDÁRIO -->
+        <div id="cal-wrapper">
+            <?= $calendarHtml ?>
         </div>
 
-        <div class="nav-group">
-            <button class="btn-nav btn-primary-action" onclick="window.location.href='adicionar_reserva.php'">
-                <i class="material-icons">add</i> Nova
-            </button>
-            <button class="btn-nav" onclick="window.location.href='pesquisar.php'">
-                <i class="material-icons">search</i> Buscar
+        <!-- BOTÃO TOGGLE -->
+        <div class="toggle-cal-container">
+            <button class="btn-toggle-cal" onclick="toggleCal()" id="btnToggleText">
+                Esconder Calendário <i class="fas fa-chevron-up"></i>
             </button>
         </div>
-    </div>
 
-    <?= generateCalendar($month, $year, $reservationsMap) ?>
-
-    <!-- SEÇÃO DE RESUMO DO DIA (Atualizada via JS) -->
-    <h3 class="summary-title" id="titleResumo">
-        <i class="material-icons">today</i> Resumo de: <?= date('d/m/Y', strtotime($todayDate)) ?>
-    </h3>
-    
-    <div class="cards-grid">
-        <div class="stat-card card-orange">
-            <div class="icon-box ib-orange"><i class="material-icons">wb_sunny</i></div>
-            <div class="stat-info">
-                <h4>Almoço</h4>
-                <div class="value" id="valAlmoco"><?= (int)$todayStats['almoco'] ?></div>
-                <small>confirmados</small>
+        <!-- FILTROS -->
+        <div class="filter-bar row g-2">
+            <div class="col-6 col-md-3">
+                <label class="form-label fw-bold small mb-1">Data</label>
+                <input type="date" name="filtro_data" id="filtro_data" class="form-control" value="<?= htmlspecialchars($filtroData) ?>" onchange="carregarListaAjax()">
+            </div>
+            <div class="col-6 col-md-3">
+                <label class="form-label fw-bold small mb-1">Busca</label>
+                <input type="text" name="busca_texto" id="busca_texto" class="form-control" placeholder="Nome/Tel" value="<?= htmlspecialchars($buscaTexto) ?>" onkeyup="carregarListaAjax()">
+            </div>
+            <div class="col-12 col-md-3 mt-md-0 mt-2">
+                <label class="form-label d-none d-md-block mb-1">&nbsp;</label>
+                <div class="btn-group w-100" role="group">
+                    <button type="button" onclick="setPeriodo('todos')" class="btn btn-outline-secondary active" id="btn-todos">Todos</button>
+                    <button type="button" onclick="setPeriodo('almoco')" class="btn btn-outline-secondary" id="btn-almoco">Almoço</button>
+                    <button type="button" onclick="setPeriodo('jantar')" class="btn btn-outline-secondary" id="btn-jantar">Jantar</button>
+                </div>
+                <input type="hidden" name="periodo" id="periodoInput" value="<?= $periodo ?>">
+            </div>
+            <div class="col-12 col-md-3 mt-md-0 mt-2">
+                <label class="form-label d-none d-md-block mb-1">&nbsp;</label>
+                <div class="d-flex gap-2 w-100">
+                    <button type="button" onclick="imprimirReservas()" class="btn btn-secondary flex-grow-1"><i class="fas fa-print"></i></button>
+                    <a href="adicionar_reserva.php" class="btn btn-primary flex-grow-1"><i class="fas fa-plus"></i> Nova</a>
+                </div>
             </div>
         </div>
 
-        <div class="stat-card card-blue">
-            <div class="icon-box ib-blue"><i class="material-icons">nights_stay</i></div>
-            <div class="stat-info">
-                <h4>Jantar</h4>
-                <div class="value" id="valJantar"><?= (int)$todayStats['jantar'] ?></div>
-                <small>confirmados</small>
-            </div>
+        <!-- LISTA AJAX -->
+        <div id="area-lista-reservas">
+            <?= renderizarListaReservas($pdo, $filtroData, $buscaTexto, $periodo) ?>
         </div>
 
-        <div class="stat-card card-green">
-            <div class="icon-box ib-green"><i class="material-icons">groups</i></div>
-            <div class="stat-info">
-                <h4>Total Dia</h4>
-                <div class="value" id="valTotal"><?= (int)$todayStats['total'] ?></div>
-                <small>Geral</small>
+    </div>
+
+    <!-- MODAIS -->
+    <div class="modal fade" id="modalPerfil" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-primary text-white">
+                    <h6 class="modal-title">Histórico</h6><button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-0">
+                    <div class="bg-light p-3 text-center d-flex justify-content-around">
+                        <div><h5 id="pTotal" class="fw-bold m-0">0</h5><small>Reservas</small></div>
+                        <div><h5 id="pCancel" class="fw-bold text-danger m-0">0</h5><small>Cancel</small></div>
+                        <div><h5 id="pPessoas" class="fw-bold text-success m-0">0</h5><small>Pax</small></div>
+                    </div>
+                    <ul class="list-group list-group-flush small p-2" id="listaHistorico"></ul>
+                </div>
             </div>
         </div>
     </div>
-
-</div>
-
-<!-- BOTÃO FLUTUANTE -->
-<button class="fab" onclick="window.location.href='adicionar_reserva.php'">
-    <i class="material-icons">add</i>
-</button>
-
-<!-- MODAL DE LISTAGEM -->
-<div class="modal-overlay" id="modalDia">
-    <div class="modal-box">
-        <div class="modal-header">
-            <h3 id="modalTitle">Reservas do dia</h3>
-            <button class="btn-close" onclick="fecharModal()">&times;</button>
-        </div>
-        <div class="modal-body" id="modalContent">
-            Carregando...
+    
+    <div class="modal fade" id="modalZap" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered modal-sm">
+            <div class="modal-content">
+                <div class="modal-header bg-success text-white">
+                    <h6 class="modal-title">WhatsApp</h6><button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body d-grid gap-2">
+                    <button class="btn btn-outline-success" id="btnZapConfirmar">Confirmar & Enviar</button>
+                    <button class="btn btn-outline-secondary" id="btnZapDireto">Apenas Abrir</button>
+                </div>
+            </div>
         </div>
     </div>
-</div>
-
-<script>
-// Função para buscar dados no servidor
-async function buscarDados(data) {
-    try {
-        const response = await fetch('ajax_reservas_dia.php?data=' + data);
-        const json = await response.json();
-        return json;
-    } catch (e) {
-        console.error("Erro AJAX:", e);
-        return { erro: true, msg: "Erro de conexão" };
-    }
-}
-
-// 1. Função quando clica no OLHO (Abre Modal com a lista)
-function verReservasDia(data, event) {
-    if(event) event.stopPropagation();
     
-    const modal = document.getElementById('modalDia');
-    const title = document.getElementById('modalTitle');
-    const content = document.getElementById('modalContent');
-    
-    const dataParts = data.split('-');
-    const dataFormatada = `${dataParts[2]}/${dataParts[1]}/${dataParts[0]}`;
-    
-    title.innerText = `Reservas: ${dataFormatada}`;
-    modal.style.display = 'flex';
-    content.innerHTML = '<div style="text-align:center; padding:20px;"><i class="material-icons" style="animation:spin 1s infinite">refresh</i><br>Buscando dados...</div>';
+    <!-- MODAL DIA - ADICIONADO STYLE DISPLAY NONE NO HTML PARA EVITAR GHOSTING -->
+    <div class="modal-overlay-dia" id="modalDia" style="display:none;">
+        <div class="modal-box-dia">
+            <div class="modal-header-dia"><h5 class="m-0" id="modalTitle">Dia</h5><button class="btn-close" onclick="fecharModalDia()"></button></div>
+            <div class="modal-body-dia" id="modalContent"><div class="text-center p-3">Carregando...</div></div>
+        </div>
+    </div>
 
-    buscarDados(data).then(json => {
-        if (json.erro) {
-            content.innerHTML = '<div style="color:red; text-align:center; padding:20px;">' + (json.msg || 'Erro desconhecido') + '</div>';
-            return;
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        const URL_ATUAL = "<?= basename($_SERVER['PHP_SELF']); ?>";
+
+        function toggleActions(id) {
+            const card = document.getElementById('card-' + id);
+            // Fecha outros
+            document.querySelectorAll('.reserva-card.show-menu').forEach(c => {
+                if (c !== card) c.classList.remove('show-menu');
+            });
+            card.classList.toggle('show-menu');
         }
 
-        if (!json.lista || json.lista.length === 0) {
-            content.innerHTML = '<div style="text-align:center; padding:20px; color:#888">Nenhuma reserva para este dia.</div>';
-            return;
-        }
-
-        let html = '';
-        json.lista.forEach(reserva => {
-            const pessoas = parseInt(reserva.num_pessoas);
-            let linkWhats = '';
-            
-            if(reserva.telefone){
-                let num = reserva.telefone.replace(/\D/g, '');
-                linkWhats = `<a href="https://wa.me/55${num}" target="_blank"><i class="material-icons" style="font-size:16px; vertical-align:middle">chat</i></a>`;
+        function toggleCal() {
+            const el = document.getElementById('cal-wrapper');
+            const btn = document.getElementById('btnToggleText');
+            if (el.classList.contains('collapsed')) {
+                el.classList.remove('collapsed');
+                btn.innerHTML = 'Esconder Calendário <i class="fas fa-chevron-up"></i>';
+            } else {
+                el.classList.add('collapsed');
+                btn.innerHTML = 'Mostrar Calendário <i class="fas fa-chevron-down"></i>';
             }
-
-            // Exibir badge de cancelado se necessário
-            let style = (reserva.status == 0) ? 'style="opacity:0.6; text-decoration:line-through"' : '';
-
-            html += `
-            <div class="reserva-item" ${style}>
-                <div>
-                    <span class="res-name">${reserva.nome}</span>
-                    <span class="res-details">${pessoas} p. • ${reserva.horario.substring(0,5)}</span>
-                </div>
-                <div class="res-actions">
-                    ${linkWhats}
-                    <a href="editar_reserva.php?id=${reserva.id}">Editar</a>
-                </div>
-            </div>`;
-        });
-        
-        // Adiciona um pequeno resumo no rodapé do modal também
-        html += `<div style="background:#f1f2f6; padding:10px; margin-top:15px; text-align:center; border-radius:8px; font-weight:bold;">
-                    Total: ${json.resumo.total} pessoas
-                 </div>`;
-
-        content.innerHTML = html;
-    });
-}
-
-// 2. Função quando clica no NÚMERO DO DIA (Atualiza Cards de Resumo)
-function carregarResumo(data) {
-    const dataParts = data.split('-');
-    const dataFormatada = `${dataParts[2]}/${dataParts[1]}/${dataParts[0]}`;
-
-    // Atualiza título visualmente para dar feedback imediato
-    document.getElementById('titleResumo').innerHTML = `<i class="material-icons">event</i> Resumo de: ${dataFormatada} <small>(Carregando...)</small>`;
-
-    // Rola a tela até o resumo
-    document.getElementById('titleResumo').scrollIntoView({ behavior: 'smooth' });
-
-    buscarDados(data).then(json => {
-        // Remove o "(Carregando...)"
-        document.getElementById('titleResumo').innerHTML = `<i class="material-icons">event</i> Resumo de: ${dataFormatada}`;
-
-        if (json.erro) {
-            alert("Erro ao buscar resumo: " + (json.msg || "Desconhecido"));
-            return;
         }
-        
-        // Efeito de atualização nos números
-        animarValor('valAlmoco', json.resumo.almoco);
-        animarValor('valJantar', json.resumo.jantar);
-        animarValor('valTotal', json.resumo.total);
-    });
-}
 
-// Pequena animação para trocar os números
-function animarValor(idElemento, novoValor) {
-    const el = document.getElementById(idElemento);
-    el.style.opacity = 0;
-    setTimeout(() => {
-        el.innerText = novoValor;
-        el.style.opacity = 1;
-    }, 200);
-}
+        function setPeriodo(val) {
+            document.getElementById('periodoInput').value = val;
+            document.querySelectorAll('.btn-group .btn').forEach(b => b.classList.remove('active'));
+            document.getElementById('btn-' + val).classList.add('active');
+            carregarListaAjax();
+        }
 
-function fecharModal() {
-    document.getElementById('modalDia').style.display = 'none';
-}
+        function carregarListaAjax(dataISO = null) {
+            if (dataISO) document.getElementById('filtro_data').value = dataISO;
+            const d = document.getElementById('filtro_data').value;
+            const b = document.getElementById('busca_texto').value;
+            const p = document.getElementById('periodoInput').value;
+            const container = document.getElementById('area-lista-reservas');
+            container.style.opacity = '0.6';
+            
+            const params = new URLSearchParams({ acao: 'listar_ajax', filtro_data: d, busca_texto: b, periodo: p });
+            fetch(URL_ATUAL + '?' + params.toString())
+                .then(r => r.text())
+                .then(html => {
+                    container.innerHTML = html;
+                    container.style.opacity = '1';
+                    const newUrl = new URL(window.location);
+                    newUrl.searchParams.set('filtro_data', d);
+                    window.history.pushState({}, '', newUrl);
+                });
+        }
 
-window.onclick = function(event) {
-    const modal = document.getElementById('modalDia');
-    if (event.target == modal) {
-        fecharModal();
-    }
-}
-</script>
+        function mudarData(dataISO, el) {
+            document.querySelectorAll('.cal-table td').forEach(c => c.classList.remove('selected'));
+            if (el) el.classList.add('selected');
+            carregarListaAjax(dataISO);
+        }
 
+        function verReservasDia(data, e) {
+            if (e) e.stopPropagation();
+            const modal = document.getElementById('modalDia');
+            document.getElementById('modalTitle').innerText = data.split('-').reverse().join('/');
+            modal.style.display = 'flex';
+            document.getElementById('modalContent').innerHTML = '<div class="text-center p-3 text-muted">Buscando...</div>';
+            fetch('ajax_reservas_dia.php?data=' + data).then(r => r.json()).then(json => {
+                if (json.erro || !json.lista) { document.getElementById('modalContent').innerHTML = '<div class="p-3 text-center">Nada encontrado.</div>'; return; }
+                let h = '';
+                json.lista.forEach(r => {
+                    h += `<div class="reserva-item"><div><strong>${r.nome}</strong><br><small class="text-muted">${r.num_pessoas} pax • ${r.horario.substring(0, 5)}</small></div><a href="editar_reserva.php?id=${r.id}" class="btn btn-sm btn-outline-primary"><i class="fas fa-pen"></i> Editar</a></div>`;
+                });
+                h += `<div class="p-2 text-center bg-light fw-bold">Total: ${json.resumo.total} pessoas</div>`;
+                document.getElementById('modalContent').innerHTML = h;
+            }).catch(() => document.getElementById('modalContent').innerHTML = '<div class="p-3 text-center text-danger">Erro</div>');
+        }
+        function fecharModalDia() { document.getElementById('modalDia').style.display = 'none'; }
+        window.onclick = function (e) { if (e.target == document.getElementById('modalDia')) fecharModalDia(); }
+
+        let curId, curLink, curLinkD;
+        function abrirModalZap(id, l1, l2) { curId = id; curLink = l1; curLinkD = l2; new bootstrap.Modal(document.getElementById('modalZap')).show(); }
+        document.getElementById('btnZapConfirmar').onclick = () => {
+            window.open(curLink, '_blank');
+            const fd = new FormData(); fd.append('acao', 'confirmar_reserva'); fd.append('id', curId);
+            fetch(URL_ATUAL, { method: 'POST', body: fd }).then(() => setTimeout(() => carregarListaAjax(), 1000));
+        };
+        document.getElementById('btnZapDireto').onclick = () => window.open(curLinkD, '_blank');
+
+        function abrirModalPerfil(tel) {
+            new bootstrap.Modal(document.getElementById('modalPerfil')).show();
+            fetch(URL_ATUAL + '?acao=ver_perfil&telefone=' + tel).then(r => r.json()).then(d => {
+                document.getElementById('pTotal').innerText = d.stats.total_reservas || 0;
+                document.getElementById('pCancel').innerText = d.stats.total_canceladas || 0;
+                document.getElementById('pPessoas').innerText = d.stats.total_pessoas_trazidas || 0;
+                let h = '';
+                d.historico.forEach(x => {
+                    h += `<li class="list-group-item d-flex justify-content-between"><span>${new Date(x.data).toLocaleDateString('pt-BR')}</span><span>${x.num_pessoas}p <i class="fas ${x.status == 0 ? 'fa-times text-danger' : 'fa-check text-success'}"></i></span></li>`;
+                });
+                document.getElementById('listaHistorico').innerHTML = h || '<li class="list-group-item text-center">Sem histórico.</li>';
+            });
+        }
+
+        function imprimirReservas() {
+            const c = document.getElementById('print-data-hidden').innerHTML || document.getElementById('area-lista-reservas').innerHTML;
+            const w = window.open('', '', 'height=800,width=1000');
+            w.document.write('<html><head><title>Imprimir</title><style>body{font-family:sans-serif} table{width:100%;border-collapse:collapse} th,td{border:1px solid #000;padding:5px}</style></head><body>' + c + '</body></html>');
+            w.document.close(); w.print();
+        }
+    </script>
 </body>
 </html>

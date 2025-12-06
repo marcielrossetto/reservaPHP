@@ -1,6 +1,6 @@
 <?php
 error_reporting(E_ALL);
-ini_set('display_errors', 1);
+ini_set('display_errors', 0); // Alterado para 0 para não quebrar o JSON em caso de warning
 
 session_start();
 require 'config.php';
@@ -47,21 +47,12 @@ function validarHorario($horario) {
 }
 
 function validarHorarioFuncionamento($horarioBanco) {
-    // Horários limites da casa
     $inicio = "11:00:00";
-    $fim = "23:59:59"; // Meia-noite em diante não é permitido
-
-    if ($horarioBanco < $inicio) {
-        return "Horário antes das 11:00 — fora do horário de funcionamento.";
-    }
-
-    if ($horarioBanco > $fim) {
-        return "Horário após 00:00 — fora do horário de funcionamento.";
-    }
-
+    $fim = "23:59:59"; 
+    if ($horarioBanco < $inicio) return "Horário antes das 11:00 — fora do horário de funcionamento.";
+    if ($horarioBanco > $fim) return "Horário após 00:00 — fora do horário de funcionamento.";
     return true;
 }
-
 
 function normalizarHorarioParaBanco($horario) {
     $horario = trim($horario);
@@ -118,7 +109,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao']) && $_POST['ac
         $erros = [];
         if (empty($telefoneRaw) || !validarTelefone($telefoneRaw)) $erros[] = "Telefone inválido";
         
-        // VALIDAÇÃO DE DATA ANTERIOR
         if (empty($dataRaw) || !validarData($dataRaw)) { 
             $erros[] = "Data inválida"; 
         } else { 
@@ -152,9 +142,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao']) && $_POST['ac
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao']) && $_POST['acao'] === 'salvar_lista_final') {
     header('Content-Type: application/json; charset=utf-8');
     
-    // Pega o ID do usuário logado
     $usuario_id = $_SESSION['mmnlogin'];
-    
     $json = $_POST['lista_json'] ?? '[]';
     $lista = json_decode($json, true);
     $sucessos = 0;
@@ -163,23 +151,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao']) && $_POST['ac
     if (is_array($lista)) {
         foreach ($lista as $item) {
             try {
-                // Inserção incluindo usuario_id
                 $sql = $pdo->prepare("INSERT INTO clientes (usuario_id, nome, data, num_pessoas, horario, telefone, telefone2, tipo_evento, forma_pagamento, valor_rodizio, num_mesa, observacoes) VALUES (:uid, :nm, :dt, :np, :hr, :tel, :tel2, :evt, :pgt, :vlr, :ms, :obs)");
                 $sql->execute([
-                    ':uid' => $usuario_id, 
-                    ':nm'  => $item['nome'], 
-                    ':dt'  => $item['data'], 
-                    ':np'  => $item['num_pessoas'],
-                    ':hr'  => $item['horario'], 
-                    ':tel' => $item['telefone'], 
-                    ':tel2'=> $item['telefone2'], 
-                    ':evt' => $item['tipo_evento'], 
-                    ':pgt' => $item['forma_pagamento'], 
-                    ':vlr' => $item['valor_rodizio'], 
-                    ':ms'  => $item['num_mesa'], 
-                    ':obs' => $item['observacoes']
+                    ':uid' => $usuario_id, ':nm' => $item['nome'], ':dt' => $item['data'], ':np' => $item['num_pessoas'],
+                    ':hr' => $item['horario'], ':tel' => $item['telefone'], ':tel2'=> $item['telefone2'], ':evt' => $item['tipo_evento'], 
+                    ':pgt' => $item['forma_pagamento'], ':vlr' => $item['valor_rodizio'], ':ms' => $item['num_mesa'], ':obs' => $item['observacoes']
                 ]);
-                
                 $dataBr = date('d/m/Y', strtotime($item['data']));
                 $horaCurta = substr($item['horario'], 0, 5);
                 $msgZap = "Olá, {$item['nome']}. Sua reserva para {$dataBr} às {$horaCurta} para {$item['num_pessoas']} pessoas foi confirmada.";
@@ -211,23 +188,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao']) && $_GET['acao'
             if (isset($h['status']) && $h['status'] == 0) $canceladas++;
             if (empty($obsClienteEncontrada) && !empty($h['obsCliente'])) $obsClienteEncontrada = $h['obsCliente'];
             if ($contadorRecentes < 4) {
-                // Alterado para incluir o ANO (d/m/Y)
                 $ultimasDatas[] = date('d/m/Y', strtotime($h['data']));
                 $contadorRecentes++;
             }
         }
 
-        $dataUltima = $ultimo['data'];
-        $tempoAtras = tempoAtras($dataUltima);
-        $stringHistorico = implode(", ", $ultimasDatas);
-
         $perfil = [
             'id' => $ultimo['id'],
             'nome' => $ultimo['nome'],
             'telefone' => $ultimo['telefone'],
-            'ultima_visita_data' => date('d/m/Y', strtotime($dataUltima)),
-            'tempo_atras' => $tempoAtras, 
-            'historico_recente' => $stringHistorico,
+            'ultima_visita_data' => date('d/m/Y', strtotime($ultimo['data'])),
+            'tempo_atras' => tempoAtras($ultimo['data']), 
+            'historico_recente' => implode(", ", $ultimasDatas),
             'total_reservas' => $total,
             'obs_cliente' => $obsClienteEncontrada,
             'canceladas' => $canceladas
@@ -245,18 +217,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao']) && $_POST['ac
     $novoNome = trim($_POST['nome']);
     $telefone = preg_replace('/\D/', '', $_POST['telefone']);
 
-    if (empty($novoNome) || empty($telefone)) {
-        echo json_encode(['success' => false, 'message' => 'Nome inválido.']);
-        exit;
-    }
+    if (empty($novoNome) || empty($telefone)) { echo json_encode(['success' => false, 'message' => 'Nome inválido.']); exit; }
 
     try {
         $sql = $pdo->prepare("UPDATE clientes SET nome = :nome WHERE telefone = :telefone");
         $sql->execute([':nome' => $novoNome, ':telefone' => $telefone]);
         echo json_encode(['success' => true]);
-    } catch (Exception $e) {
-        echo json_encode(['success' => false, 'message' => 'Erro ao atualizar.']);
-    }
+    } catch (Exception $e) { echo json_encode(['success' => false, 'message' => 'Erro ao atualizar.']); }
     exit;
 }
 
@@ -266,23 +233,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['acao']) && $_GET['acao'
     $data = normalizarDataParaBanco($_GET['data']);
     $nome = trim($_GET['nome']);
     
-    // Validação de Data Anterior (Aqui também, por segurança)
-    if ($data < date('Y-m-d')) {
-        echo json_encode(['erro_data' => true, 'msg' => 'A data selecionada é anterior à data de hoje.']);
-        exit;
-    }
+    if ($data < date('Y-m-d')) { echo json_encode(['erro_data' => true, 'msg' => 'A data selecionada é anterior à data de hoje.']); exit; }
 
     $sql = $pdo->prepare("SELECT id FROM clientes WHERE telefone = :tel AND data = :dt AND nome = :nm LIMIT 1");
     $sql->execute([':tel' => $telefone, ':dt' => $data, ':nm' => $nome]);
     echo json_encode(['existe' => ($sql->rowCount() > 0)]); exit;
 }
 
-// ========================= 6. POST: SALVAR MANUAL (Com Usuario_ID e Validação Data) =========================
+// ========================= 6. AJAX: SALVAR MANUAL (NOVA ROTINA) =========================
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['acao'])) {
+    header('Content-Type: application/json; charset=utf-8');
     
-    // Pega o ID do usuário logado
     $usuario_id = $_SESSION['mmnlogin'];
-    
     $nome = htmlspecialchars(trim($_POST['nome']));
     $data = htmlspecialchars(trim($_POST['data']));
     $num_pessoas = htmlspecialchars(trim($_POST['num_pessoas']));
@@ -299,42 +261,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !isset($_POST['acao'])) {
     $horarioBanco = normalizarHorarioParaBanco($horario);
     $validaHora = validarHorarioFuncionamento($horarioBanco);
 
-if ($validaHora !== true) {
-    echo "<script>alert('Erro: $validaHora'); window.history.back();</script>";
-    exit;
-}
-    // Validação Final de Data
+    if ($validaHora !== true) {
+        echo json_encode(['success' => false, 'message' => $validaHora]);
+        exit;
+    }
     if ($dataBanco < date('Y-m-d')) {
-        echo "<script>alert('Erro: A data da reserva não pode ser anterior a hoje.'); window.history.back();</script>";
+        echo json_encode(['success' => false, 'message' => 'Erro: A data da reserva não pode ser anterior a hoje.']);
         exit;
     }
     
-    // Inserção incluindo usuario_id
-    $sql = $pdo->prepare("INSERT INTO clientes (usuario_id, nome, data, num_pessoas, horario, telefone, telefone2, tipo_evento, forma_pagamento, valor_rodizio, num_mesa, observacoes) VALUES (:uid, :nm, :dt, :np, :hr, :tel, :tel2, :evt, :pgt, :vlr, :ms, :obs)");
-    $sql->execute([
-        ':uid' => $usuario_id, 
-        ':nm'  => $nome, 
-        ':dt'  => $dataBanco, 
-        ':np'  => $num_pessoas, 
-        ':hr'  => $horarioBanco, 
-        ':tel' => $telefone, 
-        ':tel2'=> $telefone2, 
-        ':evt' => $tipo_evento, 
-        ':pgt' => $forma_pagamento, 
-        ':vlr' => $valor_rodizio, 
-        ':ms'  => $num_mesa, 
-        ':obs' => $observacoes
-    ]);
+    try {
+        $sql = $pdo->prepare("INSERT INTO clientes (usuario_id, nome, data, num_pessoas, horario, telefone, telefone2, tipo_evento, forma_pagamento, valor_rodizio, num_mesa, observacoes) VALUES (:uid, :nm, :dt, :np, :hr, :tel, :tel2, :evt, :pgt, :vlr, :ms, :obs)");
+        $sql->execute([
+            ':uid' => $usuario_id, ':nm' => $nome, ':dt' => $dataBanco, ':np' => $num_pessoas, 
+            ':hr' => $horarioBanco, ':tel' => $telefone, ':tel2'=> $telefone2, ':evt' => $tipo_evento, 
+            ':pgt' => $forma_pagamento, ':vlr' => $valor_rodizio, ':ms' => $num_mesa, ':obs' => $observacoes
+        ]);
 
-    $msg = "Olá, $nome. Sua reserva para " . date('d/m/Y', strtotime($dataBanco)) . " às " . substr($horarioBanco,0,5) . " para $num_pessoas pessoas foi agendada.";
-    $link = "https://wa.me/55$telefone?text=" . urlencode($msg);
+        $msg = "Olá, $nome. Sua reserva para " . date('d/m/Y', strtotime($dataBanco)) . " às " . substr($horarioBanco,0,5) . " para $num_pessoas pessoas foi agendada.";
+        $link = "https://wa.me/55$telefone?text=" . urlencode($msg);
 
-    echo '<div style="display:flex; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:9999; justify-content:center; align-items:center;">
-        <div style="background:white; padding:30px; border-radius:15px; text-align:center;">
-            <h2>Reserva Salva!</h2><br>
-            <button onclick="window.location.href=\''.$link.'\'" style="background:#25D366; color:white; border:none; padding:10px 20px; border-radius:20px; font-weight:bold; cursor:pointer; margin-right:10px;">Confirmar WhatsApp</button>
-            <button onclick="window.location.href=\'adicionar_reserva.php\'" style="background:#eee; color:#333; border:none; padding:10px 20px; border-radius:20px; cursor:pointer;">Fechar</button>
-        </div></div>';
+        echo json_encode(['success' => true, 'link_wpp' => $link]);
+    } catch (Exception $e) {
+        echo json_encode(['success' => false, 'message' => 'Erro ao salvar no banco de dados.']);
+    }
     exit;
 }
 
@@ -378,7 +328,6 @@ $ultimo_preco = $sql->fetch(PDO::FETCH_ASSOC);
         .btn-profile-action { background: #fff; border: 1px solid #ccc; padding: 6px 12px; border-radius: 4px; font-size: 0.85rem; cursor: pointer; color: #333; min-width: 110px; text-decoration: none; text-align: center; }
         .btn-profile-action:hover { background: #f9f9f9; }
 
-        /* Estilos de Edição de Nome */
         .edit-name-container { display: flex; align-items: center; gap: 5px; display: none; }
         .input-edit-nome { padding: 4px 8px; border: 1px solid #007AFF; border-radius: 4px; font-size: 1rem; width: 100%; }
         .btn-icon-save { background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; padding: 4px 8px; display: flex; align-items: center;}
@@ -414,6 +363,7 @@ $ultimo_preco = $sql->fetch(PDO::FETCH_ASSOC);
         </div>
         <hr>
 
+        <!-- Modificado: onSubmit chama verificarEEnviar, que agora usa AJAX -->
         <form id="formManual" method="POST" onsubmit="event.preventDefault(); verificarEEnviar();">
             <div class="mb-2">
                 <label>Telefone:</label>
@@ -426,8 +376,6 @@ $ultimo_preco = $sql->fetch(PDO::FETCH_ASSOC);
                     <div class="profile-info-area">
                         <div class="avatar-circle"><svg viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg></div>
                         <div class="client-details">
-                            
-                            <!-- Área do Nome (Visualização e Edição) -->
                             <h3 id="card-nome">--</h3>
                             <div id="edit-name-container" class="edit-name-container">
                                 <input type="text" id="input-edit-nome" class="input-edit-nome">
@@ -542,7 +490,7 @@ function editarCliente() {
     
     document.getElementById('card-nome').style.display = 'none';
     document.getElementById('edit-name-container').style.display = 'flex';
-    document.getElementById('btn-editar-cliente').style.display = 'none'; // Esconde botão editar
+    document.getElementById('btn-editar-cliente').style.display = 'none'; 
 }
 
 function cancelarEdicaoNome() {
@@ -554,35 +502,97 @@ function cancelarEdicaoNome() {
 function salvarNomeCliente() {
     const novoNome = document.getElementById('input-edit-nome').value.trim();
     const telefone = document.getElementById('telefone').value.replace(/\D/g, '');
-
     if(!novoNome) { alert("O nome não pode ser vazio."); return; }
+    let fd = new FormData(); fd.append('acao', 'atualizar_nome_cliente'); fd.append('telefone', telefone); fd.append('nome', novoNome);
+    fetch('adicionar_reserva.php', { method: 'POST', body: fd })
+    .then(r => r.json()).then(res => {
+        if(res.success) { document.getElementById('card-nome').innerText = novoNome; document.getElementById('nome').value = novoNome; cancelarEdicaoNome(); }
+        else { alert("Erro ao atualizar."); }
+    }).catch(e => alert("Erro de conexão."));
+}
 
-    let fd = new FormData();
-    fd.append('acao', 'atualizar_nome_cliente');
-    fd.append('telefone', telefone);
-    fd.append('nome', novoNome);
-
+// --- FUNÇÃO PARA ENVIAR O FORMULÁRIO MANUAL VIA AJAX ---
+function enviarReservaAjax() {
+    const form = document.getElementById('formManual');
+    const fd = new FormData(form);
+    
     fetch('adicionar_reserva.php', { method: 'POST', body: fd })
     .then(r => r.json())
     .then(res => {
+        const btn = document.getElementById('btnSalvarManual');
+        btn.disabled = false; btn.innerText = "Cadastrar reserva";
+
         if(res.success) {
-            document.getElementById('card-nome').innerText = novoNome;
-            document.getElementById('nome').value = novoNome; // Atualiza input oculto também
-            cancelarEdicaoNome();
+            // Cria o Modal igual ao do "Salvar Direto"
+            let modalHtml = `<div id="modalConfirmacaoManual" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:9999; display:flex; justify-content:center; align-items:center;">
+                <div style="background:white; padding:30px; border-radius:15px; text-align:center; width:90%; max-width:400px; box-shadow:0 10px 25px rgba(0,0,0,0.2);">
+                    <h2 style="margin-top:0;">Reserva Salva!</h2>
+                    <p style="color:#666;">A reserva foi registrada com sucesso.</p>
+                    <div style="margin-top:20px; display:flex; flex-direction:column; gap:10px;">
+                        <button onclick="window.open('${res.link_wpp}', '_blank')" style="background:#25D366; color:white; border:none; padding:12px; border-radius:99px; font-weight:bold; cursor:pointer; width:100%;">Confirmar WhatsApp</button>
+                        <button onclick="fecharModalEAtualizar()" style="background:#e5e5ea; color:#333; border:none; padding:12px; border-radius:99px; cursor:pointer; width:100%;">Fechar / Nova Reserva</button>
+                    </div>
+                </div></div>`;
+            document.body.insertAdjacentHTML('beforeend', modalHtml);
         } else {
-            alert("Erro ao atualizar: " + (res.message || "Erro desconhecido"));
+            alert(res.message || "Erro ao salvar.");
         }
     })
     .catch(e => {
         console.error(e);
-        alert("Erro de conexão ao salvar nome.");
+        const btn = document.getElementById('btnSalvarManual');
+        btn.disabled = false; btn.innerText = "Cadastrar reserva";
+        alert("Erro ao enviar. Tente novamente.");
     });
 }
 
-// --- RESTANTE DAS FUNÇÕES ---
+function fecharModalEAtualizar() {
+    document.getElementById('modalConfirmacaoManual').remove();
+    // Limpa o formulário para uma nova reserva
+    document.getElementById('formManual').reset();
+    trocarCliente(); // Reseta o card de cliente
+    // Se quiser recarregar a página descomente abaixo, mas para UX "Single Page" limpar é melhor
+    // window.location.reload(); 
+}
+
+// --- LÓGICA DE VERIFICAÇÃO ANTES DE ENVIAR ---
+function verificarEEnviar() {
+    const tel = document.getElementById('telefone').value.replace(/\D/g, '');
+    const data = document.getElementById('data').value;
+    const nome = document.getElementById('nome').value;
+    if (tel.length < 10 || !data || !nome) { alert('Preencha os campos obrigatórios.'); return; }
+    
+    const btn = document.getElementById('btnSalvarManual'); btn.disabled = true; btn.innerText = "Verificando...";
+    
+    fetch(`adicionar_reserva.php?acao=checar_duplicidade&telefone=${tel}&data=${data}&nome=${encodeURIComponent(nome)}`)
+    .then(r => r.json()).then(resp => {
+        if(resp.erro_data) {
+            btn.disabled = false; btn.innerText = "Cadastrar reserva";
+            alert(resp.msg);
+            return;
+        }
+
+        if (resp.existe) { 
+            if (confirm(`Já existe uma reserva para ${nome} nesta data. Continuar?`)) {
+                enviarReservaAjax(); 
+            } else {
+                btn.disabled = false; btn.innerText = "Cadastrar reserva";
+            }
+        }
+        else {
+            enviarReservaAjax();
+        }
+    })
+    .catch(e => {
+        btn.disabled = false; btn.innerText = "Cadastrar reserva";
+        alert("Erro na verificação. Tente novamente.");
+    });
+}
+
+// --- FUNÇÕES "SALVAR DIRETO" (Mantidas) ---
 async function analisarSalvarDireto() {
     const texto = document.getElementById('whats_dados').value.trim();
-    if (!texto) { alert('Cole os dados primeiro.'); return; }
+    if (!texto) { alert('Cole dados.'); return; }
     const btn = event.target; const txtOriginal = btn.innerText;
     btn.innerText = "Analisando..."; btn.disabled = true;
 
@@ -591,7 +601,6 @@ async function analisarSalvarDireto() {
         let req = await fetch('adicionar_reserva.php', { method: 'POST', body: fd });
         let res = await req.json();
         btn.innerText = txtOriginal; btn.disabled = false;
-
         if (!res.success) { alert(res.message); return; }
         
         let listaParaSalvar = [];
@@ -603,7 +612,6 @@ async function analisarSalvarDireto() {
         }
         if (listaParaSalvar.length > 0) salvarListaFinal(listaParaSalvar);
         else alert('Nenhuma reserva salva.');
-
     } catch (e) { btn.innerText = txtOriginal; btn.disabled = false; alert('Erro ao analisar.'); }
 }
 
@@ -615,9 +623,9 @@ async function salvarListaFinal(lista) {
         if (res.success) {
             let linksHtml = res.links.map(l => `<li>${l.nome}: <a href="${l.link}" target="_blank">Enviar Zap</a></li>`).join('');
             let modalHtml = `<div id="modalRelatorio" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:9999; display:flex; justify-content:center; align-items:center;">
-                <div style="background:white; padding:20px; border-radius:15px; text-align:center; width:90%; max-width:400px;">
+                <div style="background:white; padding:20px; border-radius:15px; text-align:center; width:90%; max-width:400px; box-shadow:0 12px 30px rgba(0,0,0,0.14);">
                     <h3>Salvo!</h3><p>${res.salvos} reservas criadas.</p><ul style="text-align:left; max-height:200px; overflow:auto;">${linksHtml}</ul>
-                    <button onclick="document.getElementById('modalRelatorio').remove();" style="margin-top:10px; padding:10px 20px; border-radius:20px; border:none; background:#007AFF; color:white; cursor:pointer;">Fechar</button>
+                    <button onclick="document.getElementById('modalRelatorio').remove();" class="btn-ios-primary" style="margin-top:10px;">Fechar</button>
                 </div></div>`;
             document.body.insertAdjacentHTML('beforeend', modalHtml);
         }
@@ -627,10 +635,8 @@ async function salvarListaFinal(lista) {
 function buscarTelefone() {
     const telefone = document.getElementById('telefone').value.replace(/\D/g, '');
     if (telefone.length < 10) return;
-
     fetch(`adicionar_reserva.php?acao=buscar_perfil&telefone=${telefone}`)
-    .then(r => r.json())
-    .then(data => {
+    .then(r => r.json()).then(data => {
         if (data.encontrado) {
             const p = data.perfil;
             document.getElementById('card-nome').innerText = p.nome;
@@ -638,7 +644,6 @@ function buscarTelefone() {
             document.getElementById('card-ultima').innerText = p.ultima_visita_data;
             document.getElementById('card-tempo').innerText = p.tempo_atras;
             document.getElementById('card-historico').innerText = p.historico_recente;
-
             document.getElementById('stat-reservas').innerText = p.total_reservas;
             
             const statCancel = document.getElementById('stat-cancelada');
@@ -652,44 +657,12 @@ function buscarTelefone() {
             } else { areaObs.style.display = 'none'; }
 
             document.getElementById('nome').value = p.nome;
-            
-            // Reseta estado de edição ao buscar novo
             cancelarEdicaoNome();
-
             document.getElementById('card-perfil-cliente').style.display = 'block';
             document.getElementById('div-input-nome').style.display = 'none';
         } else {
             document.getElementById('card-perfil-cliente').style.display = 'none';
             document.getElementById('div-input-nome').style.display = 'block';
-        }
-    });
-}
-
-function verificarEEnviar() {
-    const tel = document.getElementById('telefone').value.replace(/\D/g, '');
-    const data = document.getElementById('data').value;
-    const nome = document.getElementById('nome').value;
-    if (tel.length < 10 || !data || !nome) { alert('Preencha os campos obrigatórios.'); return; }
-    
-    const btn = document.getElementById('btnSalvarManual'); btn.disabled = true; btn.innerText = "Verificando...";
-    
-    fetch(`adicionar_reserva.php?acao=checar_duplicidade&telefone=${tel}&data=${data}&nome=${encodeURIComponent(nome)}`)
-    .then(r => r.json()).then(resp => {
-        btn.disabled = false; btn.innerText = "Cadastrar reserva";
-        
-        // Verifica erro de data ANTES da duplicidade
-        if(resp.erro_data) {
-            alert(resp.msg);
-            return; // Para tudo
-        }
-
-        if (resp.existe) { 
-            if (confirm(`Já existe uma reserva para ${nome} nesta data. Continuar?`)) {
-                document.getElementById('formManual').submit(); 
-            }
-        }
-        else {
-            document.getElementById('formManual').submit();
         }
     });
 }
