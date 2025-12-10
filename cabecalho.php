@@ -177,12 +177,13 @@ if (isset($_SESSION['mmnlogin'])) {
         <ul class="navbar-nav mr-auto ml-3 align-items-lg-center">
             
             <!-- BOTÃO COM SINAL DE + E BOLINHA -->
-            <li class="nav-item">
-                <a class="nav-link btn-nova-reserva" href="#" data-toggle="modal" data-target="#modalNovaReserva">
-                    <span class="icon-plus-circle"><i class="fas fa-plus" style="font-size:12px;"></i></span>
-                    Nova Reserva
-                </a>
-            </li>
+       <li class="nav-item">
+    <!-- O código novo vai para o ARQUIVO -->
+    <a class="nav-link btn-nova-reserva" href="adicionar_reserva.php">
+        <span class="icon-plus-circle"><i class="fas fa-plus"></i></span>
+        Nova Reserva
+    </a>
+</li>
 
             <li class="nav-item">
                 <a class="nav-link" href="index.php"><i class="material-icons-outlined">home</i> Home</a>

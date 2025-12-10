@@ -112,29 +112,30 @@ function renderizarListaReservas($pdo, $filtroData, $buscaTexto, $periodo)
 
                     </div>
 
-                    <!-- BOTÃO TOGGLE (Mobile) -->
-                    <button class="btn-mobile-toggle" onclick="toggleActions(<?= $r['id'] ?>)">
+                    <!-- BOTÃO 3 PONTINHOS (Para Desktop e Mobile) -->
+                    <button class="btn-actions-ios" onclick="toggleIOSMenu(<?= $r['id'] ?>)">
                         <i class="fas fa-ellipsis-v"></i>
                     </button>
 
-                    <!-- AÇÕES (MENU LATERAL) -->
-                    <div class="sec-actions">
-                        <button class="btn-close-actions d-lg-none" onclick="toggleActions(<?= $r['id'] ?>)">
-                            <i class="fas fa-times"></i>
+                    <!-- MENU DE AÇÕES -->
+                    <div class="ios-menu" id="ios-menu-<?= $r['id'] ?>">
+                        <button class="ios-action text-success"
+                            onclick="abrirModalZap(<?= $r['id'] ?>, '<?= $linkZapComMsg ?>', '<?= $linkZapDireto ?>')"
+                            title="WhatsApp">
+                            <i class="fab fa-whatsapp"></i>
                         </button>
-                        <div class="actions-scroll-wrapper">
-                            <button class="btn-action btn-whatsapp"
-                                onclick="abrirModalZap(<?= $r['id'] ?>, '<?= $linkZapComMsg ?>', '<?= $linkZapDireto ?>')">
-                                <i class="fab fa-whatsapp"></i> <span class="d-none d-lg-inline">Zap</span>
-                            </button>
-                            <a href="editar_reserva.php?id=<?= $r['id'] ?>" class="btn-action">
-                                <i class="fas fa-pen text-primary"></i> <span class="d-none d-lg-inline">Editar</span>
-                            </a>
-                            <a href="excluir_reserva.php?id=<?= $r['id'] ?>" class="btn-action" onclick="return confirm('Excluir?')">
-                                <i class="fas fa-trash text-danger"></i> <span class="d-none d-lg-inline">Excluir</span>
-                            </a>
-                        </div>
+                        <a class="ios-action text-primary" href="editar_reserva.php?id=<?= $r['id'] ?>" title="Editar">
+                            <i class="fas fa-pen"></i>
+                        </a>
+                        <a class="ios-action text-danger" href="excluir_reserva.php?id=<?= $r['id'] ?>"
+                            onclick="return confirm('Excluir reserva?')" title="Excluir">
+                            <i class="fas fa-trash"></i>
+                        </a>
                     </div>
+
+                    <!-- Coluna antiga escondida via CSS -->
+                    <div class="sec-actions d-none"></div>
+
                 </div>
             <?php endforeach; ?>
         <?php else: ?>
@@ -149,7 +150,14 @@ function renderizarListaReservas($pdo, $filtroData, $buscaTexto, $periodo)
         </div>
         <table class="print-table" style="width:100%; border-collapse:collapse; font-size:10pt; font-family:Arial;">
             <thead>
-                <tr><th>ID</th><th>Nome</th><th>Qtd</th><th>Hora</th><th>Obs</th><th>Mesa</th></tr>
+                <tr>
+                    <th>ID</th>
+                    <th>Nome</th>
+                    <th>Qtd</th>
+                    <th>Hora</th>
+                    <th>Obs</th>
+                    <th>Mesa</th>
+                </tr>
             </thead>
             <tbody>
                 <?php foreach ($reservas as $r): ?>
@@ -157,9 +165,13 @@ function renderizarListaReservas($pdo, $filtroData, $buscaTexto, $periodo)
                         <td style="border:1px solid #000;padding:4px;"><?= htmlspecialchars($r['id']) ?></td>
                         <td style="border:1px solid #000;padding:4px;"><?= htmlspecialchars($r['nome']) ?></td>
                         <td style="border:1px solid #000;padding:4px; text-align:center;"><?= (int) $r['num_pessoas'] ?></td>
-                        <td style="border:1px solid #000;padding:4px; text-align:center;"><?= date("H:i", strtotime($r['horario'])) ?></td>
+                        <td style="border:1px solid #000;padding:4px; text-align:center;">
+                            <?= date("H:i", strtotime($r['horario'])) ?>
+                        </td>
                         <td style="border:1px solid #000;padding:4px;"><?= htmlspecialchars($r['observacoes']) ?></td>
-                        <td style="border:1px solid #000;padding:4px; text-align:center;"><?= htmlspecialchars($r['num_mesa'] ?? '') ?></td>
+                        <td style="border:1px solid #000;padding:4px; text-align:center;">
+                            <?= htmlspecialchars($r['num_mesa'] ?? '') ?>
+                        </td>
                     </tr>
                 <?php endforeach; ?>
             </tbody>
@@ -202,39 +214,63 @@ function generateCalendar(PDO $pdo, int $month, int $year): string
     $stmt = $pdo->prepare("SELECT data, SUM(CASE WHEN horario BETWEEN '11:00:00' AND '17:59:00' THEN IF(status!=0, num_pessoas, 0) ELSE 0 END) AS almoco, SUM(CASE WHEN horario BETWEEN '18:00:00' AND '23:59:00' THEN IF(status!=0, num_pessoas, 0) ELSE 0 END) AS jantar FROM clientes WHERE MONTH(data) = :m AND YEAR(data) = :y GROUP BY data");
     $stmt->execute(['m' => $month, 'y' => $year]);
     $map = [];
-    while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) $map[$row['data']] = $row;
+    while ($row = $stmt->fetch(PDO::FETCH_ASSOC))
+        $map[$row['data']] = $row;
     $stmtTotal = $pdo->prepare("SELECT COUNT(*) as total_res, SUM(num_pessoas) as total_pax FROM clientes WHERE MONTH(data) = :m AND YEAR(data) = :y AND status != 0");
     $stmtTotal->execute(['m' => $month, 'y' => $year]);
     $totaisMes = $stmtTotal->fetch(PDO::FETCH_ASSOC);
     $totalPaxMes = $totaisMes['total_pax'] ?? 0;
     $totalResMes = $totaisMes['total_res'] ?? 0;
-    
+
     $firstDayTs = mktime(0, 0, 0, $month, 1, $year);
     $numDays = (int) date('t', $firstDayTs);
     $dayOfWeek = (int) date('w', $firstDayTs);
     $today = date('Y-m-d');
-    $prevM = $month - 1; $prevY = $year; if ($prevM < 1) { $prevM = 12; $prevY--; }
-    $nextM = $month + 1; $nextY = $year; if ($nextM > 12) { $nextM = 1; $nextY++; }
+    $prevM = $month - 1;
+    $prevY = $year;
+    if ($prevM < 1) {
+        $prevM = 12;
+        $prevY--;
+    }
+    $nextM = $month + 1;
+    $nextY = $year;
+    if ($nextM > 12) {
+        $nextM = 1;
+        $nextY++;
+    }
     $q = http_build_query(['filtro_data' => $filtroData, 'busca_texto' => $buscaTexto, 'periodo' => $periodo]);
     $monthName = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"][$month - 1] ?? $month;
-    
+
     $html = "<div class='calendar-container'><div class='cal-header-modern'><a href='?month=$prevM&year=$prevY&$q' class='btn-nav-cal'><i class='fas fa-chevron-left'></i></a><div class='cal-title-group'><span class='cal-month-year'>{$monthName} {$year}</span><div class='cal-stats-badges'><span title='Total de Pessoas'><i class='fas fa-users'></i> {$totalPaxMes}</span><span class='divider'>•</span><span title='Total de Reservas'><i class='fas fa-file-alt'></i> {$totalResMes}</span></div></div><a href='?month=$nextM&year=$nextY&$q' class='btn-nav-cal'><i class='fas fa-chevron-right'></i></a></div><div class='table-responsive'><table class='cal-table'><thead><tr><th>Dom</th><th>Seg</th><th>Ter</th><th>Qua</th><th>Qui</th><th>Sex</th><th>Sáb</th></tr></thead><tbody><tr>";
-    if ($dayOfWeek > 0) { for ($i = 0; $i < $dayOfWeek; $i++) $html .= "<td class='empty'></td>"; }
+    if ($dayOfWeek > 0) {
+        for ($i = 0; $i < $dayOfWeek; $i++)
+            $html .= "<td class='empty'></td>";
+    }
     $d = 1;
     while ($d <= $numDays) {
-        if ($dayOfWeek == 7) { $dayOfWeek = 0; $html .= "</tr><tr>"; }
+        if ($dayOfWeek == 7) {
+            $dayOfWeek = 0;
+            $html .= "</tr><tr>";
+        }
         $currDate = sprintf('%04d-%02d-%02d', $year, $month, $d);
         $alm = $map[$currDate]['almoco'] ?? 0;
         $jan = $map[$currDate]['jantar'] ?? 0;
         $cls = ($currDate === $today) ? 'today' : '';
-        if ($currDate === $filtroData) $cls .= ' selected';
+        if ($currDate === $filtroData)
+            $cls .= ' selected';
         $html .= "<td class='day-cell $cls' onclick=\"mudarData('$currDate', this)\"><div class='d-flex justify-content-between align-items-start'><span class='day-num'>$d</span><button class='btn-eye-sm' onclick=\"verReservasDia('$currDate', event)\"><i class='fas fa-eye'></i></button></div><div class='pills-container'>";
-        if ($alm > 0) $html .= "<span class='pill pill-a'>A: $alm</span>";
-        if ($jan > 0) $html .= "<span class='pill pill-j'>J: $jan</span>";
+        if ($alm > 0)
+            $html .= "<span class='pill pill-a'>A: $alm</span>";
+        if ($jan > 0)
+            $html .= "<span class='pill pill-j'>J: $jan</span>";
         $html .= "  </div></td>";
-        $d++; $dayOfWeek++;
+        $d++;
+        $dayOfWeek++;
     }
-    if ($dayOfWeek != 7) { for ($i = 0; $i < (7 - $dayOfWeek); $i++) $html .= "<td class='empty'></td>"; }
+    if ($dayOfWeek != 7) {
+        for ($i = 0; $i < (7 - $dayOfWeek); $i++)
+            $html .= "<td class='empty'></td>";
+    }
     $html .= "</tr></tbody></table></div></div>";
     return $html;
 }
@@ -245,6 +281,7 @@ $calendarHtml = generateCalendar($pdo, $refMes, $refAno);
 ?>
 <!DOCTYPE html>
 <html lang="pt-br">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
@@ -252,143 +289,643 @@ $calendarHtml = generateCalendar($pdo, $refMes, $refAno);
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        body { background-color: #f0f2f5; font-family: 'Inter', 'Segoe UI', sans-serif; padding-bottom: 60px; }
+        body {
+            background-color: #f0f2f5;
+            font-family: 'Inter', 'Segoe UI', sans-serif;
+            padding-bottom: 60px;
+        }
+
+        /* ======== BOTÃO iOS 3 PONTINHOS (DESKTOP E MOBILE) ======== */
+        .btn-actions-ios {
+            display: flex;
+            /* Exibe sempre */
+            justify-content: center;
+            align-items: center;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            /* Redondo */
+            border: none;
+            background: #f8f9fa;
+            color: #555;
+            position: absolute;
+            top: 10px;
+            /* Canto superior */
+            right: 10px;
+            /* Canto direito */
+            z-index: 20;
+            font-size: 16px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .btn-actions-ios:hover {
+            background: #e2e2e2;
+        }
+
+        /* Menu estilo iOS */
+        .ios-menu {
+            position: absolute;
+            right: 45px;
+            /* Aparece à esquerda do botão */
+            top: 10px;
+            /* Alinhado ao topo */
+            background: white;
+            border-radius: 12px;
+            padding: 5px;
+            display: none;
+            flex-direction: column;
+            gap: 5px;
+            width: 45px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+            z-index: 100;
+        }
+
+        .ios-menu.show {
+            display: flex;
+            animation: iosAppear 0.2s ease-out;
+        }
+
+        .ios-action {
+            width: 35px;
+            height: 35px;
+            border-radius: 8px;
+            border: none;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: #fff;
+            color: #444;
+            font-size: 16px;
+            cursor: pointer;
+            text-decoration: none;
+            transition: 0.15s;
+        }
+
+        .ios-action:hover {
+            background: #f0f0f0;
+        }
+
+        @keyframes iosAppear {
+            from {
+                transform: scale(0.8);
+                opacity: 0;
+            }
+
+            to {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+
+        /* Esconde a coluna antiga de ações para não duplicar */
+        .sec-actions {
+            display: none !important;
+        }
 
         /* CALENDÁRIO */
-        :root { --cal-bg: #212529; --cal-header: #2c3034; --cal-cell: #2c3034; --cal-hover: #343a40; --cal-text: #e9ecef; --cal-muted: #adb5bd; --accent: #0d6efd; --pill-a: #ffc107; --pill-j: #0dcaf0; }
-        #cal-wrapper { overflow: hidden; max-height: 1200px; opacity: 1; transition: max-height 0.5s ease-in-out, opacity 0.4s ease-in-out; margin-bottom: 0; }
-        #cal-wrapper.collapsed { max-height: 0; opacity: 0; }
-        .calendar-container { background: var(--cal-bg); color: var(--cal-text); border-radius: 12px; box-shadow: 0 8px 16px rgba(0,0,0,0.2); padding: 0; overflow: hidden; max-width: 900px; margin: 0 auto; }
-        .cal-header-modern { background: var(--cal-header); padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #3d4146; }
-        .cal-title-group { text-align: center; display: flex; flex-direction: column; align-items: center; }
-        .cal-month-year { font-size: 1.25rem; font-weight: 700; text-transform: capitalize; color: #fff; margin-bottom: 2px; }
-        .cal-stats-badges { font-size: 0.85rem; color: var(--cal-muted); display: flex; align-items: center; gap: 8px; }
-        .cal-stats-badges i { color: var(--accent); margin-right: 3px; }
-        .btn-nav-cal { color: var(--cal-muted); font-size: 1.1rem; width: 35px; height: 35px; display: flex; align-items: center; justify-content: center; border-radius: 50%; transition: 0.2s; text-decoration: none; background: rgba(255,255,255,0.05); }
-        .btn-nav-cal:hover { background: rgba(255,255,255,0.15); color: #fff; }
-        .cal-table { width: 100%; table-layout: fixed; border-collapse: collapse; }
-        .cal-table th { text-align: center; color: var(--cal-muted); font-size: 0.75rem; text-transform: uppercase; padding: 8px 0; background: var(--cal-bg); }
-        .cal-table td { background: var(--cal-cell); border: 1px solid #3d4146; height: 60px; vertical-align: top; padding: 4px; cursor: pointer; transition: background 0.2s; position: relative; }
-        .cal-table td:not(.empty):hover { background: var(--cal-hover); }
-        .cal-table td.today { background: #3c4149; border: 1px solid var(--accent); }
-        .cal-table td.selected { background: #495057; box-shadow: inset 0 0 0 1px #fff; }
-        .day-num { font-size: 0.85rem; font-weight: 600; color: #fff; margin-left: 2px; }
-        .btn-eye-sm { background: none; border: none; padding: 0; color: var(--cal-muted); width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; transition: 0.2s; }
-        .btn-eye-sm:hover { color: #fff; background: rgba(255,255,255,0.2); }
-        .pills-container { display: flex; justify-content: flex-start; gap: 3px; margin-top: 2px; flex-wrap: wrap; }
-        .pill { font-size: 0.65rem; padding: 1px 5px; border-radius: 4px; font-weight: 700; color: #000; line-height: 1; display: inline-block; }
-        .pill-a { background: var(--pill-a); } .pill-j { background: var(--pill-j); }
-        .toggle-cal-container { text-align: center; margin-top: -10px; margin-bottom: 20px; position: relative; z-index: 10; }
-        .btn-toggle-cal { background: var(--cal-header); color: var(--cal-muted); border: 1px solid #3d4146; border-top: none; padding: 5px 20px; font-size: 0.8rem; border-bottom-left-radius: 12px; border-bottom-right-radius: 12px; cursor: pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.1); transition: 0.2s; }
-        .btn-toggle-cal:hover { background: var(--cal-hover); color: #fff; }
+        :root {
+            --cal-bg: #212529;
+            --cal-header: #2c3034;
+            --cal-cell: #2c3034;
+            --cal-hover: #343a40;
+            --cal-text: #e9ecef;
+            --cal-muted: #adb5bd;
+            --accent: #0d6efd;
+            --pill-a: #ffc107;
+            --pill-j: #0dcaf0;
+        }
 
-        .filter-bar { background: #fff; padding: 15px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); margin-bottom: 20px; }
+        #cal-wrapper {
+            overflow: hidden;
+            max-height: 1200px;
+            opacity: 1;
+            transition: max-height 0.5s ease-in-out, opacity 0.4s ease-in-out;
+            margin-bottom: 0;
+        }
+
+        #cal-wrapper.collapsed {
+            max-height: 0;
+            opacity: 0;
+        }
+
+        .calendar-container {
+            background: var(--cal-bg);
+            color: var(--cal-text);
+            border-radius: 12px;
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+            padding: 0;
+            overflow: hidden;
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        .cal-header-modern {
+            background: var(--cal-header);
+            padding: 15px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #3d4146;
+        }
+
+        .cal-title-group {
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .cal-month-year {
+            font-size: 1.25rem;
+            font-weight: 700;
+            text-transform: capitalize;
+            color: #fff;
+            margin-bottom: 2px;
+        }
+
+        .cal-stats-badges {
+            font-size: 0.85rem;
+            color: var(--cal-muted);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .cal-stats-badges i {
+            color: var(--accent);
+            margin-right: 3px;
+        }
+
+        .btn-nav-cal {
+            color: var(--cal-muted);
+            font-size: 1.1rem;
+            width: 35px;
+            height: 35px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            transition: 0.2s;
+            text-decoration: none;
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .btn-nav-cal:hover {
+            background: rgba(255, 255, 255, 0.15);
+            color: #fff;
+        }
+
+        .cal-table {
+            width: 100%;
+            table-layout: fixed;
+            border-collapse: collapse;
+        }
+
+        .cal-table th {
+            text-align: center;
+            color: var(--cal-muted);
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            padding: 8px 0;
+            background: var(--cal-bg);
+        }
+
+        .cal-table td {
+            background: var(--cal-cell);
+            border: 1px solid #3d4146;
+            height: 60px;
+            vertical-align: top;
+            padding: 4px;
+            cursor: pointer;
+            transition: background 0.2s;
+            position: relative;
+        }
+
+        .cal-table td:not(.empty):hover {
+            background: var(--cal-hover);
+        }
+
+        .cal-table td.today {
+            background: #3c4149;
+            border: 1px solid var(--accent);
+        }
+
+        .cal-table td.selected {
+            background: #495057;
+            box-shadow: inset 0 0 0 1px #fff;
+        }
+
+        .day-num {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #fff;
+            margin-left: 2px;
+        }
+
+        .btn-eye-sm {
+            background: none;
+            border: none;
+            padding: 0;
+            color: var(--cal-muted);
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.75rem;
+            transition: 0.2s;
+        }
+
+        .btn-eye-sm:hover {
+            color: #fff;
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .pills-container {
+            display: flex;
+            justify-content: flex-start;
+            gap: 3px;
+            margin-top: 2px;
+            flex-wrap: wrap;
+        }
+
+        .pill {
+            font-size: 0.65rem;
+            padding: 1px 5px;
+            border-radius: 4px;
+            font-weight: 700;
+            color: #000;
+            line-height: 1;
+            display: inline-block;
+        }
+
+        .pill-a {
+            background: var(--pill-a);
+        }
+
+        .pill-j {
+            background: var(--pill-j);
+        }
+
+        .toggle-cal-container {
+            text-align: center;
+            margin-top: -10px;
+            margin-bottom: 20px;
+            position: relative;
+            z-index: 10;
+        }
+
+        .btn-toggle-cal {
+            background: var(--cal-header);
+            color: var(--cal-muted);
+            border: 1px solid #3d4146;
+            border-top: none;
+            padding: 5px 20px;
+            font-size: 0.8rem;
+            border-bottom-left-radius: 12px;
+            border-bottom-right-radius: 12px;
+            cursor: pointer;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            transition: 0.2s;
+        }
+
+        .btn-toggle-cal:hover {
+            background: var(--cal-hover);
+            color: #fff;
+        }
+
+        .filter-bar {
+            background: #fff;
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+            margin-bottom: 20px;
+        }
 
         /* LISTA E CARDS */
-        .reserva-card { background: #fff; border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.05); margin-bottom: 12px; border-left: 5px solid #ccc; position: relative; padding: 5px 10px; display: flex; align-items: center; flex-wrap: nowrap; transition: 0.2s; }
-        .status-confirmado { border-left-color: #198754 !important; }
-        .status-pendente { border-left-color: #fd7e14 !important; }
-        .card-content-wrapper { display: contents; width: 100%; }
+        .reserva-card {
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+            margin-bottom: 12px;
+            border-left: 5px solid #ccc;
+            position: relative;
+            padding: 5px 10px;
+            padding-right: 50px;
+            /* Espaço para o botão de 3 pontos */
+            display: flex;
+            align-items: center;
+            flex-wrap: nowrap;
+            transition: 0.2s;
+            overflow: visible !important;
+            /* IMPORTANTE PARA O MENU SAIR DO CARD */
+        }
 
-        .sec-info { flex: 2; padding: 8px; display: flex; flex-direction: column; justify-content: center; }
-        .client-name { font-weight: 700; color: #333; font-size: 1rem; }
-        .id-reserva { color: #999; font-weight: 800; font-size: 0.85rem; }
-        .btn-perfil { font-size: 0.75rem; color: var(--accent); cursor: pointer; text-decoration: none; font-weight: 600; margin-top: 2px; }
+        .status-confirmado {
+            border-left-color: #198754 !important;
+        }
 
-        .sec-meta-group { flex: 2; display: flex; align-items: center; justify-content: space-evenly; }
-        .meta-item { display: flex; flex-direction: column; align-items: center; justify-content: center; border-left: 1px solid #f0f0f0; padding: 0 10px; min-width: 70px; }
-        .pax-val { font-size: 1.4rem; font-weight: 800; color: #fd7e14; line-height: 1; }
-        .pax-lbl { font-size: 0.7rem; color: #888; text-transform: uppercase; }
-        .time-val { font-size: 1.2rem; font-weight: 700; color: #333; }
-        .mesa-val { font-size: 0.75rem; background: #eee; padding: 1px 6px; border-radius: 4px; color: #555; margin-top: 2px; }
+        .status-pendente {
+            border-left-color: #fd7e14 !important;
+        }
 
-        .sec-obs-container { flex: 3; padding: 8px 15px; display: flex; align-items: center; justify-content: center; }
-        .obs-box { background-color: #fcfcfc; border: 1px solid #dee2e6; border-radius: 6px; padding: 6px 10px; font-size: 0.8rem; color: #666; width: 100%; max-width: 320px; height: 60px; overflow-y: auto; white-space: normal; }
-        .obs-box::-webkit-scrollbar { width: 4px; }
-        .obs-box::-webkit-scrollbar-track { background: #f1f1f1; }
-        .obs-box::-webkit-scrollbar-thumb { background: #ccc; border-radius: 4px; }
+        .card-content-wrapper {
+            display: contents;
+            width: 100%;
+        }
 
-        .badge-status { position: absolute; top: 8px; right: 10px; font-size: 0.65rem; padding: 2px 6px; border-radius: 4px; font-weight: bold; text-transform: uppercase; z-index: 5; }
-        .badge-ok { background: #d1e7dd; color: #0f5132; }
-        .badge-wait { background: #fff3cd; color: #664d03; }
+        .sec-info {
+            flex: 2;
+            padding: 8px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
 
-        .sec-actions { flex: 1; display: flex; flex-direction: column; gap: 4px; padding: 8px; min-width: 110px; }
-        .btn-action { width: 100%; border: 1px solid #dee2e6; background: #fff; color: #555; border-radius: 4px; padding: 4px; font-size: 0.8rem; cursor: pointer; text-align: center; text-decoration: none; transition: 0.2s; display: flex; align-items: center; justify-content: center; gap: 5px; }
-        .btn-action:hover { background: #f8f9fa; }
-        .btn-whatsapp { color: #198754; border-color: #198754; }
-        .btn-whatsapp:hover { background: #198754; color: #fff; }
-        .btn-mobile-toggle, .btn-close-actions { display: none; }
+        .client-name {
+            font-weight: 700;
+            color: #333;
+            font-size: 1rem;
+        }
+
+        .id-reserva {
+            color: #999;
+            font-weight: 800;
+            font-size: 0.85rem;
+        }
+
+        .btn-perfil {
+            font-size: 0.75rem;
+            color: var(--accent);
+            cursor: pointer;
+            text-decoration: none;
+            font-weight: 600;
+            margin-top: 2px;
+        }
+
+        .sec-meta-group {
+            flex: 2;
+            display: flex;
+            align-items: center;
+            justify-content: space-evenly;
+        }
+
+        .meta-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            border-left: 1px solid #f0f0f0;
+            padding: 0 10px;
+            min-width: 70px;
+        }
+
+        .pax-val {
+            font-size: 1.4rem;
+            font-weight: 800;
+            color: #fd7e14;
+            line-height: 1;
+        }
+
+        .pax-lbl {
+            font-size: 0.7rem;
+            color: #888;
+            text-transform: uppercase;
+        }
+
+        .time-val {
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: #333;
+        }
+
+        .mesa-val {
+            font-size: 0.75rem;
+            background: #eee;
+            padding: 1px 6px;
+            border-radius: 4px;
+            color: #555;
+            margin-top: 2px;
+        }
+
+        .sec-obs-container {
+            flex: 3;
+            padding: 8px 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .obs-box {
+            background-color: #fcfcfc;
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+            padding: 6px 10px;
+            font-size: 0.8rem;
+            color: #666;
+            width: 100%;
+            max-width: 320px;
+            height: 60px;
+            overflow-y: auto;
+            white-space: normal;
+        }
+
+        .badge-status {
+            position: absolute;
+            top: 8px;
+            right: 50px;
+            /* Afastado por causa do botão de menu */
+            font-size: 0.65rem;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-weight: bold;
+            text-transform: uppercase;
+            z-index: 5;
+        }
+
+        .badge-ok {
+            background: #d1e7dd;
+            color: #0f5132;
+        }
+
+        .badge-wait {
+            background: #fff3cd;
+            color: #664d03;
+        }
 
         /* ========= CORREÇÃO DO MODAL FANTASMA ========== */
-        .modal-overlay-dia { 
-            position: fixed; top: 0; left: 0; right: 0; bottom: 0; 
-            background: rgba(0,0,0,0.6); z-index: 2000; 
-            display: none; /* Garante que comece escondido */
-            justify-content: center; align-items: center; backdrop-filter: blur(2px); 
+        .modal-overlay-dia {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.6);
+            z-index: 2000;
+            display: none;
+            justify-content: center;
+            align-items: center;
+            backdrop-filter: blur(2px);
         }
-        .modal-box-dia { background: #fff; width: 90%; max-width: 450px; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); overflow: hidden; display: flex; flex-direction: column; max-height: 85vh; }
-        .modal-header-dia { padding: 15px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; background: #f8f9fa; }
-        .modal-body-dia { padding: 0; overflow-y: auto; }
-        .reserva-item { padding: 12px 15px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
+
+        .modal-box-dia {
+            background: #fff;
+            width: 90%;
+            max-width: 450px;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            max-height: 85vh;
+        }
+
+        .modal-header-dia {
+            padding: 15px;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #f8f9fa;
+        }
+
+        .modal-body-dia {
+            padding: 0;
+            overflow-y: auto;
+        }
+
+        .reserva-item {
+            padding: 12px 15px;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
 
         /* MOBILE (Max 991px) */
-        @media (max-width: 991px) {
-            .reserva-card { height: 110px; padding: 4px; padding-right: 35px; display: block; border-left-width: 4px; }
-            .card-content-wrapper { display: grid; grid-template-rows: 25px 1fr; grid-template-columns: 90px 1fr; height: 100%; gap: 0; }
-            
-            .badge-status { top: 3px; right: 40px; font-size: 0.55rem; padding: 1px 3px; }
-            
-            .sec-info { grid-row: 1 / 2; grid-column: 1 / 3; padding: 0 4px; border: none; border-bottom: 1px dashed #f0f0f0; justify-content: flex-end; }
-            .client-name { font-size: 0.75rem !important; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-            .btn-perfil { display: none; }
+        @media (max-width: 201px) {
+            .reserva-card {
+                height: 110px;
+                padding: 4px;
+                padding-right: 35px;
+                display: block;
+                border-left-width: 4px;
+            }
 
-            .sec-meta-group { grid-row: 2 / 3; grid-column: 1 / 2; display: flex; flex-direction: column; alignItems: flex-start; justify-content: center; border-right: 1px solid #eee; padding: 0 5px; gap: 2px; }
-            .meta-item { border: none; padding: 0; min-width: 0; align-items: flex-start; flex-direction: row; gap: 4px; }
-            .meta-pax .pax-val { font-size: 1.1rem; }
-            .meta-pax .pax-lbl { font-size: 0.65rem; margin-top: 3px; }
-            .meta-time .time-val { font-size: 0.95rem; }
-            .meta-time .mesa-val { display: none !important; }
+            .card-content-wrapper {
+                display: grid;
+                grid-template-rows: 25px 1fr;
+                grid-template-columns: 90px 1fr;
+                height: 100%;
+                gap: 0;
+            }
+
+            .badge-status {
+                top: 3px;
+                right: 40px;
+                font-size: 0.55rem;
+                padding: 1px 3px;
+            }
+
+            .sec-info {
+                grid-row: 1 / 2;
+                grid-column: 1 / 3;
+                padding: 0 4px;
+                border: none;
+                border-bottom: 1px dashed #f0f0f0;
+                justify-content: flex-end;
+            }
+
+            .client-name {
+                font-size: 0.75rem !important;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
+
+            .btn-perfil {
+                display: none;
+            }
+
+            .sec-meta-group {
+                grid-row: 2 / 3;
+                grid-column: 1 / 2;
+                display: flex;
+                flex-direction: column;
+                alignItems: flex-start;
+                justify-content: center;
+                border-right: 1px solid #eee;
+                padding: 0 5px;
+                gap: 2px;
+            }
+
+            .meta-item {
+                border: none;
+                padding: 0;
+                min-width: 0;
+                align-items: flex-start;
+                flex-direction: row;
+                gap: 4px;
+            }
+
+            .meta-pax .pax-val {
+                font-size: 1.1rem;
+            }
+
+            .meta-pax .pax-lbl {
+                font-size: 0.65rem;
+                margin-top: 3px;
+            }
+
+            .meta-time .time-val {
+                font-size: 0.95rem;
+            }
+
+            .meta-time .mesa-val {
+                display: none !important;
+            }
 
             /* Ajuste da Obs Box Mobile */
-         .sec-obs-container {
-    grid-row: 1 / 3;
-    grid-column: 2 / 3;
-    padding: 6px;
-    height: 100%;       /* mesma altura do card */
-    display: flex;
-}
-.obs-box {
-    width: 40%;         /* metade da largura */
-    height: 100%;       /* mesma altura */
-    max-width: none;
-    font-size: 0.75rem;
-    padding: 4px 6px;
-    background: #fdfdfd;
-    border: 1px solid #e0e0e0;
-    overflow-y: auto;   /* scroll vertical */
-    overflow-x: hidden; /* evita scroll horizontal */
-    border-radius: 6px;
-}
-            .btn-mobile-toggle { display: flex; position: absolute; top: 0; right: 0; bottom: 0; width: 30px; background: #f8f9fa; border: none; border-left: 1px solid #eee; align-items: center; justify-content: center; color: #888; font-size: 1rem; cursor: pointer; z-index: 6; }
-
-            /* MENU LATERAL COM SCROLL */
-            .sec-actions {
-                position: fixed; top: 0; right: 0; bottom: 0; width: 220px; 
-                height: 100vh; background: white; z-index: 9999;
-                flex-direction: column; padding: 50px 10px 20px 10px;
-                box-shadow: -5px 0 15px rgba(0,0,0,0.1);
-                transform: translateX(100%); transition: transform 0.3s ease-in-out;
-                overflow-y: auto;
+            .sec-obs-container {
+                grid-row: 1 / 3;
+                grid-column: 2 / 3;
+                padding: 6px;
+                height: 100%;
+                display: flex;
             }
-            .reserva-card.show-menu .sec-actions { transform: translateX(0); }
-            
-            .btn-close-actions { display: flex; position: absolute; top: 10px; right: 10px; width: 30px; height: 30px; border: none; background: #f0f0f0; border-radius: 50%; color: #333; align-items: center; justify-content: center; font-size: 1rem; cursor: pointer; z-index: 10000; }
-            .btn-action { width: 100%; height: 45px; margin-bottom: 8px; font-size: 0.9rem; justify-content: flex-start; padding-left: 20px; }
-            
+
+            .obs-box {
+                width: 95%;
+                height: 100%;
+                max-width: none;
+                font-size: 0.75rem;
+                padding: 4px 6px;
+                background: #fdfdfd;
+                border: 1px solid #e0e0e0;
+                overflow-y: auto;
+                border-radius: 6px;
+            }
+
             /* Ajuste Filtros Mobile */
-            .filter-bar { display: flex; flex-direction: row; flex-wrap: wrap; gap: 10px; }
-            .filter-bar .col-md-3 { flex: 1 1 45%; min-width: 140px; } 
-            .filter-bar button, .filter-bar a { width: 100%; }
+            .filter-bar {
+                display: flex;
+                flex-direction: row;
+                flex-wrap: wrap;
+                gap: 10px;
+            }
+
+            .filter-bar .col-md-3 {
+                flex: 1 1 45%;
+                min-width: 140px;
+            }
+
+            .filter-bar button,
+            .filter-bar a {
+                width: 100%;
+            }
         }
     </style>
 </head>
@@ -413,26 +950,33 @@ $calendarHtml = generateCalendar($pdo, $refMes, $refAno);
         <div class="filter-bar row g-2">
             <div class="col-6 col-md-3">
                 <label class="form-label fw-bold small mb-1">Data</label>
-                <input type="date" name="filtro_data" id="filtro_data" class="form-control" value="<?= htmlspecialchars($filtroData) ?>" onchange="carregarListaAjax()">
+                <input type="date" name="filtro_data" id="filtro_data" class="form-control"
+                    value="<?= htmlspecialchars($filtroData) ?>" onchange="carregarListaAjax()">
             </div>
             <div class="col-6 col-md-3">
                 <label class="form-label fw-bold small mb-1">Busca</label>
-                <input type="text" name="busca_texto" id="busca_texto" class="form-control" placeholder="Nome/Tel" value="<?= htmlspecialchars($buscaTexto) ?>" onkeyup="carregarListaAjax()">
+                <input type="text" name="busca_texto" id="busca_texto" class="form-control" placeholder="Nome/Tel"
+                    value="<?= htmlspecialchars($buscaTexto) ?>" onkeyup="carregarListaAjax()">
             </div>
             <div class="col-12 col-md-3 mt-md-0 mt-2">
                 <label class="form-label d-none d-md-block mb-1">&nbsp;</label>
                 <div class="btn-group w-100" role="group">
-                    <button type="button" onclick="setPeriodo('todos')" class="btn btn-outline-secondary active" id="btn-todos">Todos</button>
-                    <button type="button" onclick="setPeriodo('almoco')" class="btn btn-outline-secondary" id="btn-almoco">Almoço</button>
-                    <button type="button" onclick="setPeriodo('jantar')" class="btn btn-outline-secondary" id="btn-jantar">Jantar</button>
+                    <button type="button" onclick="setPeriodo('todos')" class="btn btn-outline-secondary active"
+                        id="btn-todos">Todos</button>
+                    <button type="button" onclick="setPeriodo('almoco')" class="btn btn-outline-secondary"
+                        id="btn-almoco">Almoço</button>
+                    <button type="button" onclick="setPeriodo('jantar')" class="btn btn-outline-secondary"
+                        id="btn-jantar">Jantar</button>
                 </div>
                 <input type="hidden" name="periodo" id="periodoInput" value="<?= $periodo ?>">
             </div>
             <div class="col-12 col-md-3 mt-md-0 mt-2">
                 <label class="form-label d-none d-md-block mb-1">&nbsp;</label>
                 <div class="d-flex gap-2 w-100">
-                    <button type="button" onclick="imprimirReservas()" class="btn btn-secondary flex-grow-1"><i class="fas fa-print"></i></button>
-                    <a href="adicionar_reserva.php" class="btn btn-primary flex-grow-1"><i class="fas fa-plus"></i> Nova</a>
+                    <button type="button" onclick="imprimirReservas()" class="btn btn-secondary flex-grow-1"><i
+                            class="fas fa-print"></i></button>
+                    <a href="adicionar_reserva.php" class="btn btn-primary flex-grow-1"><i class="fas fa-plus"></i>
+                        Nova</a>
                 </div>
             </div>
         </div>
@@ -449,25 +993,33 @@ $calendarHtml = generateCalendar($pdo, $refMes, $refAno);
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
                 <div class="modal-header bg-primary text-white">
-                    <h6 class="modal-title">Histórico</h6><button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                    <h6 class="modal-title">Histórico</h6><button type="button" class="btn-close btn-close-white"
+                        data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body p-0">
                     <div class="bg-light p-3 text-center d-flex justify-content-around">
-                        <div><h5 id="pTotal" class="fw-bold m-0">0</h5><small>Reservas</small></div>
-                        <div><h5 id="pCancel" class="fw-bold text-danger m-0">0</h5><small>Cancel</small></div>
-                        <div><h5 id="pPessoas" class="fw-bold text-success m-0">0</h5><small>Pax</small></div>
+                        <div>
+                            <h5 id="pTotal" class="fw-bold m-0">0</h5><small>Reservas</small>
+                        </div>
+                        <div>
+                            <h5 id="pCancel" class="fw-bold text-danger m-0">0</h5><small>Cancel</small>
+                        </div>
+                        <div>
+                            <h5 id="pPessoas" class="fw-bold text-success m-0">0</h5><small>Pax</small>
+                        </div>
                     </div>
                     <ul class="list-group list-group-flush small p-2" id="listaHistorico"></ul>
                 </div>
             </div>
         </div>
     </div>
-    
+
     <div class="modal fade" id="modalZap" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered modal-sm">
             <div class="modal-content">
                 <div class="modal-header bg-success text-white">
-                    <h6 class="modal-title">WhatsApp</h6><button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                    <h6 class="modal-title">WhatsApp</h6><button type="button" class="btn-close btn-close-white"
+                        data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body d-grid gap-2">
                     <button class="btn btn-outline-success" id="btnZapConfirmar">Confirmar & Enviar</button>
@@ -476,12 +1028,16 @@ $calendarHtml = generateCalendar($pdo, $refMes, $refAno);
             </div>
         </div>
     </div>
-    
-    <!-- MODAL DIA - ADICIONADO STYLE DISPLAY NONE NO HTML PARA EVITAR GHOSTING -->
+
+    <!-- MODAL DIA -->
     <div class="modal-overlay-dia" id="modalDia" style="display:none;">
         <div class="modal-box-dia">
-            <div class="modal-header-dia"><h5 class="m-0" id="modalTitle">Dia</h5><button class="btn-close" onclick="fecharModalDia()"></button></div>
-            <div class="modal-body-dia" id="modalContent"><div class="text-center p-3">Carregando...</div></div>
+            <div class="modal-header-dia">
+                <h5 class="m-0" id="modalTitle">Dia</h5><button class="btn-close" onclick="fecharModalDia()"></button>
+            </div>
+            <div class="modal-body-dia" id="modalContent">
+                <div class="text-center p-3">Carregando...</div>
+            </div>
         </div>
     </div>
 
@@ -489,13 +1045,11 @@ $calendarHtml = generateCalendar($pdo, $refMes, $refAno);
     <script>
         const URL_ATUAL = "<?= basename($_SERVER['PHP_SELF']); ?>";
 
-        function toggleActions(id) {
-            const card = document.getElementById('card-' + id);
-            // Fecha outros
-            document.querySelectorAll('.reserva-card.show-menu').forEach(c => {
-                if (c !== card) c.classList.remove('show-menu');
+        function toggleIOSMenu(id) {
+            document.querySelectorAll(".ios-menu").forEach(m => {
+                if (m.id !== "ios-menu-" + id) m.classList.remove("show");
             });
-            card.classList.toggle('show-menu');
+            document.getElementById("ios-menu-" + id).classList.toggle("show");
         }
 
         function toggleCal() {
@@ -524,7 +1078,7 @@ $calendarHtml = generateCalendar($pdo, $refMes, $refAno);
             const p = document.getElementById('periodoInput').value;
             const container = document.getElementById('area-lista-reservas');
             container.style.opacity = '0.6';
-            
+
             const params = new URLSearchParams({ acao: 'listar_ajax', filtro_data: d, busca_texto: b, periodo: p });
             fetch(URL_ATUAL + '?' + params.toString())
                 .then(r => r.text())
@@ -585,12 +1139,170 @@ $calendarHtml = generateCalendar($pdo, $refMes, $refAno);
             });
         }
 
-        function imprimirReservas() {
-            const c = document.getElementById('print-data-hidden').innerHTML || document.getElementById('area-lista-reservas').innerHTML;
-            const w = window.open('', '', 'height=800,width=1000');
-            w.document.write('<html><head><title>Imprimir</title><style>body{font-family:sans-serif} table{width:100%;border-collapse:collapse} th,td{border:1px solid #000;padding:5px}</style></head><body>' + c + '</body></html>');
-            w.document.close(); w.print();
-        }
+    function imprimirReservas() {
+    const conteudo =
+        document.getElementById('print-data-hidden')?.innerHTML ||
+        document.getElementById('area-lista-reservas')?.innerHTML;
+
+    const agora = new Date();
+    const dataBR = agora.toLocaleDateString('pt-BR');
+    const horaBR = agora.toLocaleTimeString('pt-BR', { hour: "2-digit", minute: "2-digit" });
+
+    const w = window.open('', '', 'height=900,width=1100');
+
+    w.document.write(`
+        <html>
+        <head>
+            <title>Imprimir Reservas</title>
+
+            <link rel="stylesheet"
+                  href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+            <style>
+                body {
+                    font-family: 'Inter', Arial, sans-serif;
+                    padding: 25px;
+                    background: #f2f4f7;
+                }
+
+                .print-box {
+                    background: #ffffff;
+                    padding: 25px;
+                    border-radius: 18px;
+                    box-shadow: 0 6px 25px rgba(0,0,0,0.15);
+                }
+
+                /* --- CABEÇALHO --- */
+                .print-header {
+                    display: flex;
+                    align-items: center;
+                    justify-content: space-between;
+                    margin-bottom: 25px;
+                    padding-bottom: 15px;
+                    border-bottom: 2px solid #eee;
+                }
+
+                .print-logo {
+                    display: flex;
+                    align-items: center;
+                    gap: 14px;
+                }
+
+                .print-logo img {
+                    height: 48px;
+                }
+
+                .print-title {
+                    font-size: 1.6rem;
+                    font-weight: 800;
+                    color: #333;
+                    display: flex;
+                    align-items: center;
+                    gap: 10px;
+                }
+
+                .print-title i {
+                    font-size: 1.6rem;
+                    color: #0d6efd;
+                }
+
+                .print-info {
+                    text-align: right;
+                    font-size: 0.9rem;
+                    color: #666;
+                }
+
+                .print-info div i {
+                    margin-right: 6px;
+                    color: #0d6efd;
+                }
+
+
+                /* --- TABELA MODERNA --- */
+                table {
+                    width: 100%;
+                    border-collapse: separate;
+                    border-spacing: 0;
+                    font-size: 14px;
+                }
+
+                th {
+                    background: #0d6efd;
+                    color: white;
+                    padding: 10px;
+                    font-weight: 700;
+                    border-top-left-radius: 10px;
+                    border-top-right-radius: 10px;
+                    text-align: left;
+                }
+
+                td {
+                    background: #ffffff;
+                    padding: 8px 12px;
+                    border-bottom: 1px solid #e5e5e5;
+                }
+
+                tr:last-child td {
+                    border-bottom-left-radius: 10px;
+                    border-bottom-right-radius: 10px;
+                }
+
+                td i {
+                    margin-right: 6px;
+                    color: #0d6efd;
+                }
+
+                .icon-green { color: #198754 !important; }
+                .icon-orange { color: #fd7e14 !important; }
+                .icon-gray { color: #6c757d !important; }
+
+            </style>
+        </head>
+
+        <body>
+            <div class="print-box">
+
+                <!-- ===== CABEÇALHO IMPRESSÃO ===== -->
+                <div class="print-header">
+
+                    <div class="print-logo">
+                        <img src="logo.png" alt="Logo">
+                        <span class="print-title">
+                            <i class="fa-solid fa-clipboard-list"></i>
+                            Relatório de Reservas
+                        </span>
+                    </div>
+
+                    <div class="print-info">
+                        <div><i class="fa-solid fa-calendar-day"></i> ${dataBR}</div>
+                        <div><i class="fa-solid fa-clock"></i> ${horaBR}</div>
+                    </div>
+
+                </div>
+
+                <!-- ===== CONTEÚDO DA IMPRESSÃO (RESERVAS) ===== -->
+                <div class="print-content">
+
+                    ${conteudo.replace(/<td>(\d+)<\/td>/g, "<td><i class='fa-solid fa-hashtag icon-gray'></i>$1</td>")
+                              .replace(/Pax<\/td>/g, "<i class='fa-solid fa-users icon-orange'></i> Pax</td>")
+                              .replace(/Hora<\/td>/g, "<i class='fa-solid fa-clock icon-gray'></i> Hora</td>")
+                              .replace(/Mesa<\/td>/g, "<i class='fa-solid fa-chair icon-gray'></i> Mesa</td>")
+                              .replace(/Observações<\/td>/g, "<i class='fa-solid fa-comment icon-gray'></i> Observações</td>")
+                    }
+
+                </div>
+
+            </div>
+        </body>
+        </html>
+    `);
+
+    w.document.close();
+    w.print();
+}
+
+
     </script>
 </body>
+
 </html>
