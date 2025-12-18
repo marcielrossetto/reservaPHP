@@ -72,6 +72,9 @@ function renderizarListaReservas($pdo, $filtroData, $buscaTexto, $periodo)
                 <!-- CARD -->
                 <div class="reserva-card <?= $classeBorda ?>" id="card-<?= $r['id'] ?>">
 
+                    <!-- NOVA POSIÇÃO DO ID AQUI: -->
+                    <span class="badge-id-corner"><?= $r['id'] ?></span>
+
                     <div class="card-content-wrapper">
 
                         <!-- Badge -->
@@ -82,7 +85,7 @@ function renderizarListaReservas($pdo, $filtroData, $buscaTexto, $periodo)
                         <!-- 1. NOME -->
                         <div class="sec-info">
                             <div class="client-name">
-                                <span class="id-reserva">#<?= $r['id'] ?></span> <?= htmlspecialchars($nome) ?>
+                                <?= htmlspecialchars($nome) ?>
                             </div>
                             <span class="btn-perfil" onclick="abrirModalPerfil('<?= $telLimpo ?>')">
                                 <i class="fas fa-history"></i> <span class="d-none d-md-inline">Histórico</span>
@@ -309,9 +312,9 @@ $calendarHtml = generateCalendar($pdo, $refMes, $refAno);
             background: #f8f9fa;
             color: #555;
             position: absolute;
-            top: 10px;
+            top: 0px;
             /* Canto superior */
-            right: 10px;
+            right: 2px;
             /* Canto direito */
             z-index: 20;
             font-size: 16px;
@@ -356,7 +359,7 @@ $calendarHtml = generateCalendar($pdo, $refMes, $refAno);
             justify-content: center;
             align-items: center;
             background: #fff;
-            color: #444;
+            color: #383838ff;
             font-size: 16px;
             cursor: pointer;
             text-decoration: none;
@@ -419,6 +422,42 @@ $calendarHtml = generateCalendar($pdo, $refMes, $refAno);
             overflow: hidden;
             max-width: 900px;
             margin: 0 auto;
+        }
+
+        /* ===============================
+   BOTÕES DE PERÍODO (ÍCONE ONLY)
+================================ */
+        .btn-period {
+            width: 44px;
+            height: 38px;
+            padding: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.95rem;
+        }
+
+        /* Ativo */
+        .btn-period.active {
+            background-color: #0d6efd;
+            color: #fff;
+            border-color: #0d6efd;
+        }
+
+        /* ===============================
+   BOTÕES SOMENTE COM ÍCONE
+================================ */
+        .btn-icon {
+            width: 42px;
+            height: 38px;
+            padding: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .btn-icon i {
+            font-size: 14px;
         }
 
         .cal-header-modern {
@@ -572,7 +611,7 @@ $calendarHtml = generateCalendar($pdo, $refMes, $refAno);
 
         .toggle-cal-container {
             text-align: center;
-            margin-top: -10px;
+            margin-top: -3px;
             margin-bottom: 20px;
             position: relative;
             z-index: 10;
@@ -648,13 +687,34 @@ $calendarHtml = generateCalendar($pdo, $refMes, $refAno);
         .client-name {
             font-weight: 700;
             color: #333;
-            font-size: 1rem;
+
+            /* === A MÁGICA ACONTECE AQUI === */
+            /* 
+       clamp(MÍNIMO, IDEAL, MÁXIMO)
+       11px = Não fica menor que isso (para não ficar ilegível)
+       3.5vw = Ocupa 3.5% da largura da tela (diminui conforme a tela fecha)
+       16px = Tamanho máximo original (1rem)
+    */
+            font-size: clamp(11px, 3.5vw, 16px);
+
+            /* === IMPEDE A QUEBRA DE LINHA === */
+            white-space: nowrap;
+            /* Obriga a ficar em 1 linha */
+            overflow: hidden;
+            /* Corta o que sobrar */
+            text-overflow: ellipsis;
+            /* Adiciona "..." se o nome for gigante */
+
+            /* Garante que o elemento ocupe o espaço para alinhar */
+            display: block;
+            max-width: 100%;
+        }
         }
 
         .id-reserva {
             color: #999;
             font-weight: 800;
-            font-size: 0.85rem;
+            font-size: 0.65rem;
         }
 
         .btn-perfil {
@@ -673,6 +733,19 @@ $calendarHtml = generateCalendar($pdo, $refMes, $refAno);
             justify-content: space-evenly;
         }
 
+        .btn-print {
+            width: 102px;
+            height: 58px;
+            padding: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .btn-print i {
+            font-size: 4px;
+        }
+
         .meta-item {
             display: flex;
             flex-direction: column;
@@ -684,7 +757,7 @@ $calendarHtml = generateCalendar($pdo, $refMes, $refAno);
         }
 
         .pax-val {
-            font-size: 1.4rem;
+            font-size: 1.1rem;
             font-weight: 800;
             color: #fd7e14;
             line-height: 1;
@@ -697,13 +770,13 @@ $calendarHtml = generateCalendar($pdo, $refMes, $refAno);
         }
 
         .time-val {
-            font-size: 1.2rem;
+            font-size: 1.0rem;
             font-weight: 700;
             color: #333;
         }
 
         .mesa-val {
-            font-size: 0.75rem;
+            font-size: 0.55rem;
             background: #eee;
             padding: 1px 6px;
             border-radius: 4px;
@@ -735,14 +808,26 @@ $calendarHtml = generateCalendar($pdo, $refMes, $refAno);
 
         .badge-status {
             position: absolute;
-            top: 8px;
+            top: 1px;
             right: 50px;
             /* Afastado por causa do botão de menu */
-            font-size: 0.65rem;
+            font-size: 0.35rem;
             padding: 2px 6px;
             border-radius: 4px;
             font-weight: bold;
             text-transform: uppercase;
+            z-index: 5;
+        }
+
+        .badge-id-corner {
+            position: absolute;
+            top: 4px;
+            left: 16px;
+            /* Afasta um pouco da borda colorida */
+            font-size: 0.5rem;
+            font-weight: 800;
+            color: #adb5bd;
+            /* Cor cinza claro */
             z-index: 5;
         }
 
@@ -805,128 +890,7 @@ $calendarHtml = generateCalendar($pdo, $refMes, $refAno);
             align-items: center;
         }
 
-        /* MOBILE (Max 991px) */
-        @media (max-width: 201px) {
-            .reserva-card {
-                height: 110px;
-                padding: 4px;
-                padding-right: 35px;
-                display: block;
-                border-left-width: 4px;
-            }
-
-            .card-content-wrapper {
-                display: grid;
-                grid-template-rows: 25px 1fr;
-                grid-template-columns: 90px 1fr;
-                height: 100%;
-                gap: 0;
-            }
-
-            .badge-status {
-                top: 3px;
-                right: 40px;
-                font-size: 0.55rem;
-                padding: 1px 3px;
-            }
-
-            .sec-info {
-                grid-row: 1 / 2;
-                grid-column: 1 / 3;
-                padding: 0 4px;
-                border: none;
-                border-bottom: 1px dashed #f0f0f0;
-                justify-content: flex-end;
-            }
-
-            .client-name {
-                font-size: 0.75rem !important;
-                white-space: nowrap;
-                overflow: hidden;
-                text-overflow: ellipsis;
-            }
-
-            .btn-perfil {
-                display: none;
-            }
-
-            .sec-meta-group {
-                grid-row: 2 / 3;
-                grid-column: 1 / 2;
-                display: flex;
-                flex-direction: column;
-                alignItems: flex-start;
-                justify-content: center;
-                border-right: 1px solid #eee;
-                padding: 0 5px;
-                gap: 2px;
-            }
-
-            .meta-item {
-                border: none;
-                padding: 0;
-                min-width: 0;
-                align-items: flex-start;
-                flex-direction: row;
-                gap: 4px;
-            }
-
-            .meta-pax .pax-val {
-                font-size: 1.1rem;
-            }
-
-            .meta-pax .pax-lbl {
-                font-size: 0.65rem;
-                margin-top: 3px;
-            }
-
-            .meta-time .time-val {
-                font-size: 0.95rem;
-            }
-
-            .meta-time .mesa-val {
-                display: none !important;
-            }
-
-            /* Ajuste da Obs Box Mobile */
-            .sec-obs-container {
-                grid-row: 1 / 3;
-                grid-column: 2 / 3;
-                padding: 6px;
-                height: 100%;
-                display: flex;
-            }
-
-            .obs-box {
-                width: 95%;
-                height: 100%;
-                max-width: none;
-                font-size: 0.75rem;
-                padding: 4px 6px;
-                background: #fdfdfd;
-                border: 1px solid #e0e0e0;
-                overflow-y: auto;
-                border-radius: 6px;
-            }
-
-            /* Ajuste Filtros Mobile */
-            .filter-bar {
-                display: flex;
-                flex-direction: row;
-                flex-wrap: wrap;
-                gap: 10px;
-            }
-
-            .filter-bar .col-md-3 {
-                flex: 1 1 45%;
-                min-width: 140px;
-            }
-
-            .filter-bar button,
-            .filter-bar a {
-                width: 100%;
-            }
-        }
+      
     </style>
 </head>
 
@@ -947,40 +911,57 @@ $calendarHtml = generateCalendar($pdo, $refMes, $refAno);
         </div>
 
         <!-- FILTROS -->
-        <div class="filter-bar row g-2">
-            <div class="col-6 col-md-3">
-                <label class="form-label fw-bold small mb-1">Data</label>
-                <input type="date" name="filtro_data" id="filtro_data" class="form-control"
+        <div class="filter-bar d-flex flex-nowrap align-items-end gap-1 p-2 bg-white rounded shadow-sm">
+
+            <!-- DATA (Largura fixa compacta) -->
+            <div style="min-width: 125px; max-width: 140px;">
+                <label class="form-label fw-bold small mb-0" style="font-size: 0.7rem;">Data</label>
+                <input type="date" name="filtro_data" id="filtro_data" class="form-control form-control-sm"
                     value="<?= htmlspecialchars($filtroData) ?>" onchange="carregarListaAjax()">
             </div>
-            <div class="col-6 col-md-3">
-                <label class="form-label fw-bold small mb-1">Busca</label>
-                <input type="text" name="busca_texto" id="busca_texto" class="form-control" placeholder="Nome/Tel"
-                    value="<?= htmlspecialchars($buscaTexto) ?>" onkeyup="carregarListaAjax()">
+
+            <!-- BUSCA (Ocupa o espaço restante) -->
+            <div class="flex-grow-1" style="min-width: 80px;">
+                <label class="form-label fw-bold small mb-0" style="font-size: 0.7rem;">Busca</label>
+                <input type="text" name="busca_texto" id="busca_texto" class="form-control form-control-sm"
+                    placeholder="Nome/Tel" value="<?= htmlspecialchars($buscaTexto) ?>" onkeyup="carregarListaAjax()">
             </div>
-            <div class="col-12 col-md-3 mt-md-0 mt-2">
-                <label class="form-label d-none d-md-block mb-1">&nbsp;</label>
-                <div class="btn-group w-100" role="group">
-                    <button type="button" onclick="setPeriodo('todos')" class="btn btn-outline-secondary active"
-                        id="btn-todos">Todos</button>
-                    <button type="button" onclick="setPeriodo('almoco')" class="btn btn-outline-secondary"
-                        id="btn-almoco">Almoço</button>
-                    <button type="button" onclick="setPeriodo('jantar')" class="btn btn-outline-secondary"
-                        id="btn-jantar">Jantar</button>
+
+            <!-- FILTROS PERÍODO (Grupo de botões pequenos) -->
+            <div>
+                <div class="btn-group btn-group-sm" role="group">
+                    <button type="button" onclick="setPeriodo('todos')" class="btn btn-outline-secondary btn-period"
+                        id="btn-todos" title="Todos" style="padding: 0.25rem 0.5rem;">
+                        <i class="fas fa-list-ul small"></i>
+                    </button>
+
+                    <button type="button" onclick="setPeriodo('almoco')" class="btn btn-outline-secondary btn-period"
+                        id="btn-almoco" title="Almoço" style="padding: 0.25rem 0.5rem;">
+                        <i class="fas fa-sun small"></i>
+                    </button>
+
+                    <button type="button" onclick="setPeriodo('jantar')" class="btn btn-outline-secondary btn-period"
+                        id="btn-jantar" title="Jantar" style="padding: 0.25rem 0.5rem;">
+                        <i class="fas fa-moon small"></i>
+                    </button>
                 </div>
                 <input type="hidden" name="periodo" id="periodoInput" value="<?= $periodo ?>">
             </div>
-            <div class="col-12 col-md-3 mt-md-0 mt-2">
-                <label class="form-label d-none d-md-block mb-1">&nbsp;</label>
-                <div class="d-flex gap-2 w-100">
-                    <button type="button" onclick="imprimirReservas()" class="btn btn-secondary flex-grow-1"><i
-                            class="fas fa-print"></i></button>
-                    <a href="adicionar_reserva.php" class="btn btn-primary flex-grow-1"><i class="fas fa-plus"></i>
-                        Nova</a>
-                </div>
-            </div>
-        </div>
 
+            <!-- AÇÕES (Impressão e Novo - Ícones apenas) -->
+            <div class="d-flex gap-1">
+                <button type="button" onclick="imprimirReservas()" class="btn btn-secondary btn-sm btn-icon"
+                    title="Imprimir" style="width: 32px; height: 31px;">
+                    <i class="fas fa-print small"></i>
+                </button>
+
+                <a href="adicionar_reserva.php" class="btn btn-primary btn-sm btn-icon" title="Nova reserva"
+                    style="width: 32px; height: 31px;">
+                    <i class="fas fa-plus small"></i>
+                </a>
+            </div>
+
+        </div>
         <!-- LISTA AJAX -->
         <div id="area-lista-reservas">
             <?= renderizarListaReservas($pdo, $filtroData, $buscaTexto, $periodo) ?>
@@ -1139,18 +1120,18 @@ $calendarHtml = generateCalendar($pdo, $refMes, $refAno);
             });
         }
 
-    function imprimirReservas() {
-    const conteudo =
-        document.getElementById('print-data-hidden')?.innerHTML ||
-        document.getElementById('area-lista-reservas')?.innerHTML;
+        function imprimirReservas() {
+            const conteudo =
+                document.getElementById('print-data-hidden')?.innerHTML ||
+                document.getElementById('area-lista-reservas')?.innerHTML;
 
-    const agora = new Date();
-    const dataBR = agora.toLocaleDateString('pt-BR');
-    const horaBR = agora.toLocaleTimeString('pt-BR', { hour: "2-digit", minute: "2-digit" });
+            const agora = new Date();
+            const dataBR = agora.toLocaleDateString('pt-BR');
+            const horaBR = agora.toLocaleTimeString('pt-BR', { hour: "2-digit", minute: "2-digit" });
 
-    const w = window.open('', '', 'height=900,width=1100');
+            const w = window.open('', '', 'height=900,width=1100');
 
-    w.document.write(`
+            w.document.write(`
         <html>
         <head>
             <title>Imprimir Reservas</title>
@@ -1284,11 +1265,11 @@ $calendarHtml = generateCalendar($pdo, $refMes, $refAno);
                 <div class="print-content">
 
                     ${conteudo.replace(/<td>(\d+)<\/td>/g, "<td><i class='fa-solid fa-hashtag icon-gray'></i>$1</td>")
-                              .replace(/Pax<\/td>/g, "<i class='fa-solid fa-users icon-orange'></i> Pax</td>")
-                              .replace(/Hora<\/td>/g, "<i class='fa-solid fa-clock icon-gray'></i> Hora</td>")
-                              .replace(/Mesa<\/td>/g, "<i class='fa-solid fa-chair icon-gray'></i> Mesa</td>")
-                              .replace(/Observações<\/td>/g, "<i class='fa-solid fa-comment icon-gray'></i> Observações</td>")
-                    }
+                    .replace(/Pax<\/td>/g, "<i class='fa-solid fa-users icon-orange'></i> Pax</td>")
+                    .replace(/Hora<\/td>/g, "<i class='fa-solid fa-clock icon-gray'></i> Hora</td>")
+                    .replace(/Mesa<\/td>/g, "<i class='fa-solid fa-chair icon-gray'></i> Mesa</td>")
+                    .replace(/Observações<\/td>/g, "<i class='fa-solid fa-comment icon-gray'></i> Observações</td>")
+                }
 
                 </div>
 
@@ -1297,9 +1278,9 @@ $calendarHtml = generateCalendar($pdo, $refMes, $refAno);
         </html>
     `);
 
-    w.document.close();
-    w.print();
-}
+            w.document.close();
+            w.print();
+        }
 
 
     </script>
