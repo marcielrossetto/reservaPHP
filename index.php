@@ -10,37 +10,66 @@ if (empty($_SESSION['mmnlogin'])) {
 /* ============================================================
    FUNÇÃO AUXILIAR: RENDERIZAR LISTA
 ============================================================ */
-function renderizarListaReservas($pdo, $filtroData, $buscaTexto, $periodo)
+function renderizarListaReservas($pdo, $filtroData, $buscaTexto, $periodo, $verCancelados = 'false')
 {
-    $sqlWhere = " WHERE status != 0 ";
-    $params = [];
+    // 1. QUERY PARA TOTAIS (Sempre ignora cancelados para a soma)
+    $sqlWhereTotal = " WHERE status != 0 ";
+    $paramsTotal = [];
 
     if (!empty($filtroData)) {
-        $sqlWhere .= " AND data = :data ";
-        $params[':data'] = $filtroData;
+        $sqlWhereTotal .= " AND data = :data ";
+        $paramsTotal[':data'] = $filtroData;
     }
     if (!empty($buscaTexto)) {
-        $sqlWhere .= " AND (nome LIKE :texto OR telefone LIKE :texto OR id LIKE :texto) ";
-        $params[':texto'] = "%$buscaTexto%";
+        $sqlWhereTotal .= " AND (nome LIKE :texto OR telefone LIKE :texto OR id LIKE :texto) ";
+        $paramsTotal[':texto'] = "%$buscaTexto%";
     }
 
     $tituloPeriodo = "Dia Completo";
     if ($periodo === 'almoco') {
-        $sqlWhere .= " AND horario < '18:00:00'";
+        $sqlWhereTotal .= " AND horario < '18:00:00'";
         $tituloPeriodo = "Almoço";
     } elseif ($periodo === 'jantar') {
-        $sqlWhere .= " AND horario >= '18:00:00'";
+        $sqlWhereTotal .= " AND horario >= '18:00:00'";
         $tituloPeriodo = "Jantar";
     }
 
-    // Totais
-    $sqlTotal = $pdo->prepare("SELECT SUM(num_pessoas) as total FROM clientes $sqlWhere");
-    $sqlTotal->execute($params);
+    // Executa soma (apenas ativos)
+    $sqlTotal = $pdo->prepare("SELECT SUM(num_pessoas) as total FROM clientes $sqlWhereTotal");
+    $sqlTotal->execute($paramsTotal);
     $total_pessoas = $sqlTotal->fetch()['total'] ?? 0;
 
+
+    // 2. QUERY PARA LISTAGEM (Pode incluir cancelados se solicitado)
+    $sqlWhereLista = " WHERE 1=1 ";
+    $paramsLista = [];
+
+    // Se NÃO quiser ver cancelados, filtramos status != 0
+    // Se quiser ver (true), não aplicamos filtro de status (traz tudo), ou filtramos status específico se preferir
+    if ($verCancelados !== 'true') {
+        $sqlWhereLista .= " AND status != 0 ";
+    } else {
+        // Se quiser ver cancelados, trazemos tudo (0 e 1) ou poderíamos ordenar cancelados no fim
+        // A query segue normal, o status será verificado no loop
+    }
+
+    if (!empty($filtroData)) {
+        $sqlWhereLista .= " AND data = :data ";
+        $paramsLista[':data'] = $filtroData;
+    }
+    if (!empty($buscaTexto)) {
+        $sqlWhereLista .= " AND (nome LIKE :texto OR telefone LIKE :texto OR id LIKE :texto) ";
+        $paramsLista[':texto'] = "%$buscaTexto%";
+    }
+    if ($periodo === 'almoco') {
+        $sqlWhereLista .= " AND horario < '18:00:00'";
+    } elseif ($periodo === 'jantar') {
+        $sqlWhereLista .= " AND horario >= '18:00:00'";
+    }
+
     // Lista
-    $sql = $pdo->prepare("SELECT * FROM clientes $sqlWhere ORDER BY horario ASC");
-    $sql->execute($params);
+    $sql = $pdo->prepare("SELECT * FROM clientes $sqlWhereLista ORDER BY horario ASC");
+    $sql->execute($paramsLista);
     $reservas = $sql->fetchAll(PDO::FETCH_ASSOC);
 
     ob_start();
@@ -52,14 +81,28 @@ function renderizarListaReservas($pdo, $filtroData, $buscaTexto, $periodo)
             <i class="fas fa-calendar-day text-primary"></i> <strong><?= date('d/m', strtotime($filtroData)) ?></strong> -
             <?= $tituloPeriodo ?>
         </span>
-        <span class="badge bg-dark p-2">Total: <?= $total_pessoas ?></span>
+        <!-- Total apenas de ativos -->
+        <span class="badge bg-dark p-2">Total Ativos: <?= $total_pessoas ?></span>
     </div>
 
     <div class="lista-reservas-conteudo">
         <?php if (count($reservas) > 0): ?>
             <?php foreach ($reservas as $r):
+                // Verificações de Status
+                $isCancelado = ($r['status'] == 0);
                 $isConfirmado = ($r['confirmado'] == 1);
-                $classeBorda = $isConfirmado ? 'status-confirmado' : 'status-pendente';
+
+                // Definição de Classes e Textos
+                if ($isCancelado) {
+                    $classeBorda = 'status-cancelado';
+                    $textoBadge = 'Cancelado';
+                    $classBadge = 'badge-cancel';
+                } else {
+                    $classeBorda = $isConfirmado ? 'status-confirmado' : 'status-pendente';
+                    $textoBadge = $isConfirmado ? 'Confirmado' : 'Pendente';
+                    $classBadge = $isConfirmado ? 'badge-ok' : 'badge-wait';
+                }
+
                 $horaShort = date("H:i", strtotime($r['horario']));
                 $nome = ucwords(strtolower($r['nome']));
                 $telLimpo = preg_replace('/[^0-9]/', '', $r['telefone']);
@@ -72,19 +115,19 @@ function renderizarListaReservas($pdo, $filtroData, $buscaTexto, $periodo)
                 <!-- CARD -->
                 <div class="reserva-card <?= $classeBorda ?>" id="card-<?= $r['id'] ?>">
 
-                    <!-- NOVA POSIÇÃO DO ID AQUI: -->
+                    <!-- POSIÇÃO DO ID -->
                     <span class="badge-id-corner"><?= $r['id'] ?></span>
 
                     <div class="card-content-wrapper">
 
-                        <!-- Badge -->
-                        <span class="badge-status <?= $isConfirmado ? 'badge-ok' : 'badge-wait' ?>">
-                            <?= $isConfirmado ? 'Confirmado' : 'Pendente' ?>
+                        <!-- Badge Status -->
+                        <span class="badge-status <?= $classBadge ?>">
+                            <?= $textoBadge ?>
                         </span>
 
                         <!-- 1. NOME -->
                         <div class="sec-info">
-                            <div class="client-name">
+                            <div class="client-name" style="<?= $isCancelado ? 'text-decoration: line-through; color: #999;' : '' ?>">
                                 <?= htmlspecialchars($nome) ?>
                             </div>
                             <span class="btn-perfil" onclick="abrirModalPerfil('<?= $telLimpo ?>')">
@@ -95,11 +138,15 @@ function renderizarListaReservas($pdo, $filtroData, $buscaTexto, $periodo)
                         <!-- 2. META DADOS (PAX + HORA) -->
                         <div class="sec-meta-group">
                             <div class="meta-item meta-pax">
-                                <span class="pax-val"><?= (int) $r['num_pessoas'] ?></span>
+                                <span class="pax-val" style="<?= $isCancelado ? 'color: #999;' : '' ?>">
+                                    <?= (int) $r['num_pessoas'] ?>
+                                </span>
                                 <span class="pax-lbl">Pax</span>
                             </div>
                             <div class="meta-item meta-time">
-                                <span class="time-val"><?= $horaShort ?></span>
+                                <span class="time-val" style="<?= $isCancelado ? 'color: #999;' : '' ?>">
+                                    <?= $horaShort ?>
+                                </span>
                                 <?php if (!empty($r['num_mesa'])): ?>
                                     <span class="mesa-val">M:<?= $r['num_mesa'] ?></span>
                                 <?php endif; ?>
@@ -130,6 +177,8 @@ function renderizarListaReservas($pdo, $filtroData, $buscaTexto, $periodo)
                         <a class="ios-action text-primary" href="editar_reserva.php?id=<?= $r['id'] ?>" title="Editar">
                             <i class="fas fa-pen"></i>
                         </a>
+                        
+                        <!-- Se já estiver cancelado, talvez mudar ação ou manter excluir -->
                         <a class="ios-action text-danger" href="excluir_reserva.php?id=<?= $r['id'] ?>"
                             onclick="return confirm('Excluir reserva?')" title="Excluir">
                             <i class="fas fa-trash"></i>
@@ -146,6 +195,7 @@ function renderizarListaReservas($pdo, $filtroData, $buscaTexto, $periodo)
         <?php endif; ?>
     </div>
 
+    <!-- TABELA OCULTA PARA IMPRESSÃO -->
     <div id="print-data-hidden" style="display:none;">
         <div class="print-header">
             <h3>Lista de Reservas</h3>
@@ -163,7 +213,9 @@ function renderizarListaReservas($pdo, $filtroData, $buscaTexto, $periodo)
                 </tr>
             </thead>
             <tbody>
-                <?php foreach ($reservas as $r): ?>
+                <?php foreach ($reservas as $r): 
+                     if($r['status'] == 0) continue; // Não imprime cancelados na lista de papel
+                ?>
                     <tr>
                         <td style="border:1px solid #000;padding:4px;"><?= htmlspecialchars($r['id']) ?></td>
                         <td style="border:1px solid #000;padding:4px;"><?= htmlspecialchars($r['nome']) ?></td>
@@ -186,7 +238,13 @@ function renderizarListaReservas($pdo, $filtroData, $buscaTexto, $periodo)
 
 // AJAX HANDLERS
 if (isset($_GET['acao']) && $_GET['acao'] === 'listar_ajax') {
-    echo renderizarListaReservas($pdo, $_GET['filtro_data'] ?? date('Y-m-d'), $_GET['busca_texto'] ?? '', $_GET['periodo'] ?? 'todos');
+    echo renderizarListaReservas(
+        $pdo, 
+        $_GET['filtro_data'] ?? date('Y-m-d'), 
+        $_GET['busca_texto'] ?? '', 
+        $_GET['periodo'] ?? 'todos',
+        $_GET['ver_cancelados'] ?? 'false' // Recebe o parametro do Switch
+    );
     exit;
 }
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao']) && $_POST['acao'] === 'confirmar_reserva') {
@@ -298,24 +356,20 @@ $calendarHtml = generateCalendar($pdo, $refMes, $refAno);
             padding-bottom: 60px;
         }
 
-        /* ======== BOTÃO iOS 3 PONTINHOS (DESKTOP E MOBILE) ======== */
+        /* ======== BOTÃO iOS 3 PONTINHOS ======== */
         .btn-actions-ios {
             display: flex;
-            /* Exibe sempre */
             justify-content: center;
             align-items: center;
             width: 32px;
             height: 32px;
             border-radius: 50%;
-            /* Redondo */
             border: none;
             background: #f8f9fa;
             color: #555;
             position: absolute;
             top: 0px;
-            /* Canto superior */
             right: 2px;
-            /* Canto direito */
             z-index: 20;
             font-size: 16px;
             box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
@@ -327,13 +381,10 @@ $calendarHtml = generateCalendar($pdo, $refMes, $refAno);
             background: #e2e2e2;
         }
 
-        /* Menu estilo iOS */
         .ios-menu {
             position: absolute;
             right: 45px;
-            /* Aparece à esquerda do botão */
             top: 10px;
-            /* Alinhado ao topo */
             background: white;
             border-radius: 12px;
             padding: 5px;
@@ -371,18 +422,10 @@ $calendarHtml = generateCalendar($pdo, $refMes, $refAno);
         }
 
         @keyframes iosAppear {
-            from {
-                transform: scale(0.8);
-                opacity: 0;
-            }
-
-            to {
-                transform: scale(1);
-                opacity: 1;
-            }
+            from { transform: scale(0.8); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
         }
 
-        /* Esconde a coluna antiga de ações para não duplicar */
         .sec-actions {
             display: none !important;
         }
@@ -424,42 +467,6 @@ $calendarHtml = generateCalendar($pdo, $refMes, $refAno);
             margin: 0 auto;
         }
 
-        /* ===============================
-   BOTÕES DE PERÍODO (ÍCONE ONLY)
-================================ */
-        .btn-period {
-            width: 44px;
-            height: 38px;
-            padding: 0;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 0.95rem;
-        }
-
-        /* Ativo */
-        .btn-period.active {
-            background-color: #0d6efd;
-            color: #fff;
-            border-color: #0d6efd;
-        }
-
-        /* ===============================
-   BOTÕES SOMENTE COM ÍCONE
-================================ */
-        .btn-icon {
-            width: 42px;
-            height: 38px;
-            padding: 0;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .btn-icon i {
-            font-size: 14px;
-        }
-
         .cal-header-modern {
             background: var(--cal-header);
             padding: 15px 20px;
@@ -468,14 +475,12 @@ $calendarHtml = generateCalendar($pdo, $refMes, $refAno);
             align-items: center;
             border-bottom: 1px solid #3d4146;
         }
-
         .cal-title-group {
             text-align: center;
             display: flex;
             flex-direction: column;
             align-items: center;
         }
-
         .cal-month-year {
             font-size: 1.25rem;
             font-weight: 700;
@@ -483,7 +488,6 @@ $calendarHtml = generateCalendar($pdo, $refMes, $refAno);
             color: #fff;
             margin-bottom: 2px;
         }
-
         .cal-stats-badges {
             font-size: 0.85rem;
             color: var(--cal-muted);
@@ -491,12 +495,10 @@ $calendarHtml = generateCalendar($pdo, $refMes, $refAno);
             align-items: center;
             gap: 8px;
         }
-
         .cal-stats-badges i {
             color: var(--accent);
             margin-right: 3px;
         }
-
         .btn-nav-cal {
             color: var(--cal-muted);
             font-size: 1.1rem;
@@ -510,18 +512,15 @@ $calendarHtml = generateCalendar($pdo, $refMes, $refAno);
             text-decoration: none;
             background: rgba(255, 255, 255, 0.05);
         }
-
         .btn-nav-cal:hover {
             background: rgba(255, 255, 255, 0.15);
             color: #fff;
         }
-
         .cal-table {
             width: 100%;
             table-layout: fixed;
             border-collapse: collapse;
         }
-
         .cal-table th {
             text-align: center;
             color: var(--cal-muted);
@@ -530,7 +529,6 @@ $calendarHtml = generateCalendar($pdo, $refMes, $refAno);
             padding: 8px 0;
             background: var(--cal-bg);
         }
-
         .cal-table td {
             background: var(--cal-cell);
             border: 1px solid #3d4146;
@@ -541,28 +539,23 @@ $calendarHtml = generateCalendar($pdo, $refMes, $refAno);
             transition: background 0.2s;
             position: relative;
         }
-
         .cal-table td:not(.empty):hover {
             background: var(--cal-hover);
         }
-
         .cal-table td.today {
             background: #3c4149;
             border: 1px solid var(--accent);
         }
-
         .cal-table td.selected {
             background: #495057;
             box-shadow: inset 0 0 0 1px #fff;
         }
-
         .day-num {
             font-size: 0.85rem;
             font-weight: 600;
             color: #fff;
             margin-left: 2px;
         }
-
         .btn-eye-sm {
             background: none;
             border: none;
@@ -577,12 +570,10 @@ $calendarHtml = generateCalendar($pdo, $refMes, $refAno);
             font-size: 0.75rem;
             transition: 0.2s;
         }
-
         .btn-eye-sm:hover {
             color: #fff;
             background: rgba(255, 255, 255, 0.2);
         }
-
         .pills-container {
             display: flex;
             justify-content: flex-start;
@@ -590,7 +581,6 @@ $calendarHtml = generateCalendar($pdo, $refMes, $refAno);
             margin-top: 2px;
             flex-wrap: wrap;
         }
-
         .pill {
             font-size: 0.65rem;
             padding: 1px 5px;
@@ -600,14 +590,8 @@ $calendarHtml = generateCalendar($pdo, $refMes, $refAno);
             line-height: 1;
             display: inline-block;
         }
-
-        .pill-a {
-            background: var(--pill-a);
-        }
-
-        .pill-j {
-            background: var(--pill-j);
-        }
+        .pill-a { background: var(--pill-a); }
+        .pill-j { background: var(--pill-j); }
 
         .toggle-cal-container {
             text-align: center;
@@ -616,7 +600,6 @@ $calendarHtml = generateCalendar($pdo, $refMes, $refAno);
             position: relative;
             z-index: 10;
         }
-
         .btn-toggle-cal {
             background: var(--cal-header);
             color: var(--cal-muted);
@@ -630,18 +613,23 @@ $calendarHtml = generateCalendar($pdo, $refMes, $refAno);
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
             transition: 0.2s;
         }
-
         .btn-toggle-cal:hover {
             background: var(--cal-hover);
             color: #fff;
         }
 
+        /* FILTRO FIX - MOBILE SCROLL */
         .filter-bar {
             background: #fff;
             padding: 15px;
             border-radius: 10px;
             box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
             margin-bottom: 20px;
+            
+            /* CORREÇÃO PARA MOBILE: Permite scroll horizontal sem quebrar layout */
+            overflow-x: auto; 
+            white-space: nowrap;
+            -webkit-overflow-scrolling: touch; /* Suavidade no iOS */
         }
 
         /* LISTA E CARDS */
@@ -654,21 +642,20 @@ $calendarHtml = generateCalendar($pdo, $refMes, $refAno);
             position: relative;
             padding: 5px 10px;
             padding-right: 50px;
-            /* Espaço para o botão de 3 pontos */
             display: flex;
             align-items: center;
             flex-wrap: nowrap;
             transition: 0.2s;
             overflow: visible !important;
-            /* IMPORTANTE PARA O MENU SAIR DO CARD */
         }
 
-        .status-confirmado {
-            border-left-color: #198754 !important;
-        }
-
-        .status-pendente {
-            border-left-color: #fd7e14 !important;
+        .status-confirmado { border-left-color: #198754 !important; }
+        .status-pendente { border-left-color: #fd7e14 !important; }
+        
+        /* ESTILO PARA CANCELADOS */
+        .status-cancelado { 
+            border-left-color: #dc3545 !important; 
+            background-color: #fff5f5; /* Fundo levemente vermelho */
         }
 
         .card-content-wrapper {
@@ -682,33 +669,18 @@ $calendarHtml = generateCalendar($pdo, $refMes, $refAno);
             display: flex;
             flex-direction: column;
             justify-content: center;
+            min-width: 0;
         }
 
         .client-name {
             font-weight: 700;
             color: #333;
-
-            /* === A MÁGICA ACONTECE AQUI === */
-            /* 
-       clamp(MÍNIMO, IDEAL, MÁXIMO)
-       11px = Não fica menor que isso (para não ficar ilegível)
-       3.5vw = Ocupa 3.5% da largura da tela (diminui conforme a tela fecha)
-       16px = Tamanho máximo original (1rem)
-    */
             font-size: clamp(11px, 3.5vw, 16px);
-
-            /* === IMPEDE A QUEBRA DE LINHA === */
             white-space: nowrap;
-            /* Obriga a ficar em 1 linha */
             overflow: hidden;
-            /* Corta o que sobrar */
             text-overflow: ellipsis;
-            /* Adiciona "..." se o nome for gigante */
-
-            /* Garante que o elemento ocupe o espaço para alinhar */
             display: block;
             max-width: 100%;
-        }
         }
 
         .id-reserva {
@@ -732,19 +704,31 @@ $calendarHtml = generateCalendar($pdo, $refMes, $refAno);
             align-items: center;
             justify-content: space-evenly;
         }
-
-        .btn-print {
-            width: 102px;
-            height: 58px;
+        
+        /* BOTÕES DE ICONES */
+        .btn-period {
+            width: 44px;
+            height: 38px;
+            padding: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.95rem;
+        }
+        .btn-period.active {
+            background-color: #0d6efd;
+            color: #fff;
+            border-color: #0d6efd;
+        }
+        .btn-icon {
+            width: 42px;
+            height: 38px;
             padding: 0;
             display: flex;
             align-items: center;
             justify-content: center;
         }
-
-        .btn-print i {
-            font-size: 4px;
-        }
+        .btn-icon i { font-size: 14px; }
 
         .meta-item {
             display: flex;
@@ -810,7 +794,6 @@ $calendarHtml = generateCalendar($pdo, $refMes, $refAno);
             position: absolute;
             top: 1px;
             right: 50px;
-            /* Afastado por causa do botão de menu */
             font-size: 0.35rem;
             padding: 2px 6px;
             border-radius: 4px;
@@ -823,31 +806,21 @@ $calendarHtml = generateCalendar($pdo, $refMes, $refAno);
             position: absolute;
             top: 4px;
             left: 16px;
-            /* Afasta um pouco da borda colorida */
             font-size: 0.5rem;
             font-weight: 800;
             color: #adb5bd;
-            /* Cor cinza claro */
             z-index: 5;
         }
 
-        .badge-ok {
-            background: #d1e7dd;
-            color: #0f5132;
-        }
+        .badge-ok { background: #d1e7dd; color: #0f5132; }
+        .badge-wait { background: #fff3cd; color: #664d03; }
+        
+        /* BADGE CANCELADO */
+        .badge-cancel { background: #dc3545; color: #fff; }
 
-        .badge-wait {
-            background: #fff3cd;
-            color: #664d03;
-        }
-
-        /* ========= CORREÇÃO DO MODAL FANTASMA ========== */
         .modal-overlay-dia {
             position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
+            top: 0; left: 0; right: 0; bottom: 0;
             background: rgba(0, 0, 0, 0.6);
             z-index: 2000;
             display: none;
@@ -855,7 +828,6 @@ $calendarHtml = generateCalendar($pdo, $refMes, $refAno);
             align-items: center;
             backdrop-filter: blur(2px);
         }
-
         .modal-box-dia {
             background: #fff;
             width: 90%;
@@ -867,7 +839,6 @@ $calendarHtml = generateCalendar($pdo, $refMes, $refAno);
             flex-direction: column;
             max-height: 85vh;
         }
-
         .modal-header-dia {
             padding: 15px;
             border-bottom: 1px solid #eee;
@@ -876,12 +847,10 @@ $calendarHtml = generateCalendar($pdo, $refMes, $refAno);
             align-items: center;
             background: #f8f9fa;
         }
-
         .modal-body-dia {
             padding: 0;
             overflow-y: auto;
         }
-
         .reserva-item {
             padding: 12px 15px;
             border-bottom: 1px solid #eee;
@@ -889,8 +858,22 @@ $calendarHtml = generateCalendar($pdo, $refMes, $refAno);
             justify-content: space-between;
             align-items: center;
         }
-
-      
+        
+        /* Ajuste do Toggle Switch para ficar pequeno */
+        .form-switch .form-check-input {
+            width: 2em;
+            height: 1em;
+            cursor: pointer;
+        }
+        .toggle-cancel-label {
+            font-size: 0.7rem;
+            font-weight: 600;
+            color: #666;
+            margin-bottom: 2px;
+            display: block;
+            text-align: center;
+        }
+        
     </style>
 </head>
 
@@ -903,15 +886,15 @@ $calendarHtml = generateCalendar($pdo, $refMes, $refAno);
             <?= $calendarHtml ?>
         </div>
 
-        <!-- BOTÃO TOGGLE -->
+        <!-- BOTÃO TOGGLE CALENDÁRIO -->
         <div class="toggle-cal-container">
             <button class="btn-toggle-cal" onclick="toggleCal()" id="btnToggleText">
                 Esconder Calendário <i class="fas fa-chevron-up"></i>
             </button>
         </div>
 
-        <!-- FILTROS -->
-        <div class="filter-bar d-flex flex-nowrap align-items-end gap-1 p-2 bg-white rounded shadow-sm">
+        <!-- FILTROS - COM SCROLL MOBILE PARA NÃO VAZAR -->
+        <div class="filter-bar d-flex align-items-end gap-2 p-2 bg-white rounded shadow-sm">
 
             <!-- DATA (Largura fixa compacta) -->
             <div style="min-width: 125px; max-width: 140px;">
@@ -920,26 +903,25 @@ $calendarHtml = generateCalendar($pdo, $refMes, $refAno);
                     value="<?= htmlspecialchars($filtroData) ?>" onchange="carregarListaAjax()">
             </div>
 
-            <!-- BUSCA (Ocupa o espaço restante) -->
-            <div class="flex-grow-1" style="min-width: 80px;">
+            <!-- BUSCA (Flex) -->
+            <div style="min-width: 100px; flex: 1;">
                 <label class="form-label fw-bold small mb-0" style="font-size: 0.7rem;">Busca</label>
                 <input type="text" name="busca_texto" id="busca_texto" class="form-control form-control-sm"
                     placeholder="Nome/Tel" value="<?= htmlspecialchars($buscaTexto) ?>" onkeyup="carregarListaAjax()">
             </div>
 
-            <!-- FILTROS PERÍODO (Grupo de botões pequenos) -->
+            <!-- FILTROS PERÍODO -->
             <div>
+                 <label class="form-label fw-bold small mb-0 d-block text-center" style="font-size: 0.7rem;">Período</label>
                 <div class="btn-group btn-group-sm" role="group">
                     <button type="button" onclick="setPeriodo('todos')" class="btn btn-outline-secondary btn-period"
                         id="btn-todos" title="Todos" style="padding: 0.25rem 0.5rem;">
                         <i class="fas fa-list-ul small"></i>
                     </button>
-
                     <button type="button" onclick="setPeriodo('almoco')" class="btn btn-outline-secondary btn-period"
                         id="btn-almoco" title="Almoço" style="padding: 0.25rem 0.5rem;">
                         <i class="fas fa-sun small"></i>
                     </button>
-
                     <button type="button" onclick="setPeriodo('jantar')" class="btn btn-outline-secondary btn-period"
                         id="btn-jantar" title="Jantar" style="padding: 0.25rem 0.5rem;">
                         <i class="fas fa-moon small"></i>
@@ -948,8 +930,16 @@ $calendarHtml = generateCalendar($pdo, $refMes, $refAno);
                 <input type="hidden" name="periodo" id="periodoInput" value="<?= $periodo ?>">
             </div>
 
-            <!-- AÇÕES (Impressão e Novo - Ícones apenas) -->
-            <div class="d-flex gap-1">
+            <!-- NOVO: TOGGLE CANCELADOS -->
+            <div class="d-flex flex-column align-items-center justify-content-end" style="min-width: 50px;">
+                <span class="toggle-cancel-label">Canc.</span>
+                <div class="form-check form-switch m-0">
+                    <input class="form-check-input" type="checkbox" id="checkCancelados" onchange="carregarListaAjax()">
+                </div>
+            </div>
+
+            <!-- AÇÕES (Impressão e Novo) -->
+            <div class="d-flex gap-1" style="min-width: 70px;">
                 <button type="button" onclick="imprimirReservas()" class="btn btn-secondary btn-sm btn-icon"
                     title="Imprimir" style="width: 32px; height: 31px;">
                     <i class="fas fa-print small"></i>
@@ -962,6 +952,7 @@ $calendarHtml = generateCalendar($pdo, $refMes, $refAno);
             </div>
 
         </div>
+        
         <!-- LISTA AJAX -->
         <div id="area-lista-reservas">
             <?= renderizarListaReservas($pdo, $filtroData, $buscaTexto, $periodo) ?>
@@ -969,7 +960,7 @@ $calendarHtml = generateCalendar($pdo, $refMes, $refAno);
 
     </div>
 
-    <!-- MODAIS -->
+    <!-- MODAIS (Mantidos iguais) -->
     <div class="modal fade" id="modalPerfil" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
@@ -979,15 +970,9 @@ $calendarHtml = generateCalendar($pdo, $refMes, $refAno);
                 </div>
                 <div class="modal-body p-0">
                     <div class="bg-light p-3 text-center d-flex justify-content-around">
-                        <div>
-                            <h5 id="pTotal" class="fw-bold m-0">0</h5><small>Reservas</small>
-                        </div>
-                        <div>
-                            <h5 id="pCancel" class="fw-bold text-danger m-0">0</h5><small>Cancel</small>
-                        </div>
-                        <div>
-                            <h5 id="pPessoas" class="fw-bold text-success m-0">0</h5><small>Pax</small>
-                        </div>
+                        <div><h5 id="pTotal" class="fw-bold m-0">0</h5><small>Reservas</small></div>
+                        <div><h5 id="pCancel" class="fw-bold text-danger m-0">0</h5><small>Cancel</small></div>
+                        <div><h5 id="pPessoas" class="fw-bold text-success m-0">0</h5><small>Pax</small></div>
                     </div>
                     <ul class="list-group list-group-flush small p-2" id="listaHistorico"></ul>
                 </div>
@@ -1010,7 +995,6 @@ $calendarHtml = generateCalendar($pdo, $refMes, $refAno);
         </div>
     </div>
 
-    <!-- MODAL DIA -->
     <div class="modal-overlay-dia" id="modalDia" style="display:none;">
         <div class="modal-box-dia">
             <div class="modal-header-dia">
@@ -1057,10 +1041,21 @@ $calendarHtml = generateCalendar($pdo, $refMes, $refAno);
             const d = document.getElementById('filtro_data').value;
             const b = document.getElementById('busca_texto').value;
             const p = document.getElementById('periodoInput').value;
+            
+            // NOVO: Pega estado do switch (true/false)
+            const verCancelados = document.getElementById('checkCancelados').checked;
+
             const container = document.getElementById('area-lista-reservas');
             container.style.opacity = '0.6';
 
-            const params = new URLSearchParams({ acao: 'listar_ajax', filtro_data: d, busca_texto: b, periodo: p });
+            const params = new URLSearchParams({ 
+                acao: 'listar_ajax', 
+                filtro_data: d, 
+                busca_texto: b, 
+                periodo: p,
+                ver_cancelados: verCancelados // Envia para o PHP
+            });
+            
             fetch(URL_ATUAL + '?' + params.toString())
                 .then(r => r.text())
                 .then(html => {
@@ -1135,155 +1130,54 @@ $calendarHtml = generateCalendar($pdo, $refMes, $refAno);
         <html>
         <head>
             <title>Imprimir Reservas</title>
-
-            <link rel="stylesheet"
-                  href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-
+            <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
             <style>
-                body {
-                    font-family: 'Inter', Arial, sans-serif;
-                    padding: 25px;
-                    background: #f2f4f7;
-                }
-
-                .print-box {
-                    background: #ffffff;
-                    padding: 25px;
-                    border-radius: 18px;
-                    box-shadow: 0 6px 25px rgba(0,0,0,0.15);
-                }
-
-                /* --- CABEÇALHO --- */
-                .print-header {
-                    display: flex;
-                    align-items: center;
-                    justify-content: space-between;
-                    margin-bottom: 25px;
-                    padding-bottom: 15px;
-                    border-bottom: 2px solid #eee;
-                }
-
-                .print-logo {
-                    display: flex;
-                    align-items: center;
-                    gap: 14px;
-                }
-
-                .print-logo img {
-                    height: 48px;
-                }
-
-                .print-title {
-                    font-size: 1.6rem;
-                    font-weight: 800;
-                    color: #333;
-                    display: flex;
-                    align-items: center;
-                    gap: 10px;
-                }
-
-                .print-title i {
-                    font-size: 1.6rem;
-                    color: #0d6efd;
-                }
-
-                .print-info {
-                    text-align: right;
-                    font-size: 0.9rem;
-                    color: #666;
-                }
-
-                .print-info div i {
-                    margin-right: 6px;
-                    color: #0d6efd;
-                }
-
-
-                /* --- TABELA MODERNA --- */
-                table {
-                    width: 100%;
-                    border-collapse: separate;
-                    border-spacing: 0;
-                    font-size: 14px;
-                }
-
-                th {
-                    background: #0d6efd;
-                    color: white;
-                    padding: 10px;
-                    font-weight: 700;
-                    border-top-left-radius: 10px;
-                    border-top-right-radius: 10px;
-                    text-align: left;
-                }
-
-                td {
-                    background: #ffffff;
-                    padding: 8px 12px;
-                    border-bottom: 1px solid #e5e5e5;
-                }
-
-                tr:last-child td {
-                    border-bottom-left-radius: 10px;
-                    border-bottom-right-radius: 10px;
-                }
-
-                td i {
-                    margin-right: 6px;
-                    color: #0d6efd;
-                }
-
+                body { font-family: 'Inter', Arial, sans-serif; padding: 25px; background: #f2f4f7; }
+                .print-box { background: #ffffff; padding: 25px; border-radius: 18px; box-shadow: 0 6px 25px rgba(0,0,0,0.15); }
+                .print-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 25px; padding-bottom: 15px; border-bottom: 2px solid #eee; }
+                .print-logo { display: flex; align-items: center; gap: 14px; }
+                .print-logo img { height: 48px; }
+                .print-title { font-size: 1.6rem; font-weight: 800; color: #333; display: flex; align-items: center; gap: 10px; }
+                .print-title i { font-size: 1.6rem; color: #0d6efd; }
+                .print-info { text-align: right; font-size: 0.9rem; color: #666; }
+                .print-info div i { margin-right: 6px; color: #0d6efd; }
+                table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 14px; }
+                th { background: #0d6efd; color: white; padding: 10px; font-weight: 700; border-top-left-radius: 10px; border-top-right-radius: 10px; text-align: left; }
+                td { background: #ffffff; padding: 8px 12px; border-bottom: 1px solid #e5e5e5; }
+                tr:last-child td { border-bottom-left-radius: 10px; border-bottom-right-radius: 10px; }
+                td i { margin-right: 6px; color: #0d6efd; }
                 .icon-green { color: #198754 !important; }
                 .icon-orange { color: #fd7e14 !important; }
                 .icon-gray { color: #6c757d !important; }
-
             </style>
         </head>
-
         <body>
             <div class="print-box">
-
-                <!-- ===== CABEÇALHO IMPRESSÃO ===== -->
                 <div class="print-header">
-
                     <div class="print-logo">
                         <img src="logo.png" alt="Logo">
-                        <span class="print-title">
-                            <i class="fa-solid fa-clipboard-list"></i>
-                            Relatório de Reservas
-                        </span>
+                        <span class="print-title"><i class="fa-solid fa-clipboard-list"></i> Relatório de Reservas</span>
                     </div>
-
                     <div class="print-info">
                         <div><i class="fa-solid fa-calendar-day"></i> ${dataBR}</div>
                         <div><i class="fa-solid fa-clock"></i> ${horaBR}</div>
                     </div>
-
                 </div>
-
-                <!-- ===== CONTEÚDO DA IMPRESSÃO (RESERVAS) ===== -->
                 <div class="print-content">
-
-                    ${conteudo.replace(/<td>(\d+)<\/td>/g, "<td><i class='fa-solid fa-hashtag icon-gray'></i>$1</td>")
+                    ${conteudo.replace(/<td>(\d+)<\/td>/g, "<td>$1</td>")
                     .replace(/Pax<\/td>/g, "<i class='fa-solid fa-users icon-orange'></i> Pax</td>")
                     .replace(/Hora<\/td>/g, "<i class='fa-solid fa-clock icon-gray'></i> Hora</td>")
                     .replace(/Mesa<\/td>/g, "<i class='fa-solid fa-chair icon-gray'></i> Mesa</td>")
                     .replace(/Observações<\/td>/g, "<i class='fa-solid fa-comment icon-gray'></i> Observações</td>")
                 }
-
                 </div>
-
             </div>
         </body>
         </html>
     `);
-
             w.document.close();
             w.print();
         }
-
-
     </script>
 </body>
-
 </html>
