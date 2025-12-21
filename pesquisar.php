@@ -2,118 +2,116 @@
 session_start();
 require 'config.php';
 
-/* ======================================================
-   SEGURANÇA
-====================================================== */
 if (empty($_SESSION['mmnlogin'])) {
     header("Location: login.php");
     exit;
 }
 
 /* ======================================================
-   AÇÃO: CANCELAR RESERVA (SEMPRE ANTES DO HTML)
+   BACKEND: AJAX HANDLERS
 ====================================================== */
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cancelar_reserva'])) {
 
-    $id = (int) ($_POST['id'] ?? 0);
-    $motivos = $_POST['motivo_cancelamento'] ?? [];
+// 1. Buscar dados para os Modais
+if (isset($_GET['acao']) && $_GET['acao'] === 'get_reserva') {
+    $id = (int) $_GET['id'];
+    $stmt = $pdo->prepare("SELECT * FROM clientes WHERE id = :id");
+    $stmt->execute([':id' => $id]);
+    echo json_encode($stmt->fetch(PDO::FETCH_ASSOC));
+    exit;
+}
 
-    if ($id > 0 && !empty($motivos)) {
-        $stmt = $pdo->prepare("
-            UPDATE clientes
-            SET status = 0,
-                motivo_cancelamento = :motivo
-            WHERE id = :id
-        ");
-        $stmt->execute([
-            ':motivo' => implode(', ', $motivos),
-            ':id' => $id
+// 2. Salvar Edição Geral
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao']) && $_POST['acao'] === 'salvar_edicao') {
+    try {
+        $id = (int) $_POST['id_reserva'];
+        $sql = $pdo->prepare("UPDATE clientes SET nome=:nome, data=:data, num_pessoas=:num_pessoas, horario=:horario, telefone=:telefone, num_mesa=:num_mesa, observacoes=:observacoes, obsCliente=:obsC WHERE id=:id");
+        $sql->execute([
+            ":id" => $id,
+            ":nome" => trim($_POST['nome'] ?? ''),
+            ":data" => $_POST['data'] ?? '',
+            ":num_pessoas" => $_POST['num_pessoas'] ?? 0,
+            ":horario" => $_POST['horario'] ?? '',
+            ":telefone" => preg_replace('/\D/', '', $_POST['telefone'] ?? ''),
+            ":num_mesa" => $_POST['num_mesa'] ?? '',
+            ":observacoes" => trim($_POST['observacoes'] ?? ''),
+            ":obsC" => trim($_POST['obsCliente'] ?? '')
         ]);
-
-        $_SESSION['mensagem'] = "Reserva cancelada com sucesso!";
+        echo json_encode(['success' => true]);
+    } catch (Exception $e) {
+        echo json_encode(['erro' => $e->getMessage()]);
     }
+    exit;
+}
 
-    header("Location: pesquisar.php");
+// 3. Salvar Apenas Obs Cliente
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao']) && $_POST['acao'] === 'salvar_obs_cliente') {
+    $id = (int) $_POST['id_reserva_obs'];
+    $obs = $_POST['obsCliente'] ?? '';
+    $stmt = $pdo->prepare("UPDATE clientes SET obsCliente = :obs WHERE id = :id");
+    $stmt->execute([':obs' => $obs, ':id' => $id]);
+    echo json_encode(['success' => true]);
+    exit;
+}
+
+// 4. Reativar Reserva
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['acao']) && $_POST['acao'] === 'reativar_reserva') {
+    $id = (int) $_POST['id'];
+    $stmt = $pdo->prepare("UPDATE clientes SET status = 1 WHERE id = :id");
+    $stmt->execute([':id' => $id]);
+    echo json_encode(['success' => true]);
     exit;
 }
 
 /* ======================================================
-   FILTROS E CONFIGURAÇÕES
+   FILTROS E CONSULTAS
 ====================================================== */
-$porPagina = 15;
-$paginaAtual = isset($_GET['page']) ? max(1, (int) $_GET['page']) : 1;
-
 $data_inicio = $_GET['data_inicio'] ?? '';
 $data_fim = $_GET['data_fim'] ?? '';
-$hora_inicio = $_GET['hora_inicio'] ?? '';
-$hora_fim = $_GET['hora_fim'] ?? '';
 $busca = $_GET['busca'] ?? '';
 $verCanceladas = isset($_GET['canceladas']) && $_GET['canceladas'] === '1';
 
-/* ======================================================
-   QUERY DINÂMICA
-====================================================== */
 $where = " WHERE 1=1 ";
 $params = [];
-
 if ($data_inicio && $data_fim) {
-    $where .= " AND data BETWEEN :data_inicio AND :data_fim";
+    $where .= " AND c.data BETWEEN :data_inicio AND :data_fim";
     $params[':data_inicio'] = $data_inicio;
     $params[':data_fim'] = $data_fim;
 }
-
-if ($hora_inicio && $hora_fim) {
-    $where .= " AND horario BETWEEN :hora_inicio AND :hora_fim";
-    $params[':hora_inicio'] = $hora_inicio;
-    $params[':hora_fim'] = $hora_fim;
-}
-
 if ($busca) {
-    $where .= " AND (nome LIKE :busca OR telefone LIKE :busca)";
+    $where .= " AND (c.nome LIKE :busca OR c.telefone LIKE :busca OR c.id LIKE :busca)";
     $params[':busca'] = "%{$busca}%";
 }
 
 if ($verCanceladas) {
-    $where .= " AND status = 0";
-    $tituloPagina = "Reservas Canceladas";
+    $where .= " AND c.status = 0";
+    $tituloPagina = "Canceladas";
     $corBadge = "#fee2e2";
     $corTexto = "#991b1b";
 } else {
-    $where .= " AND status <> 0";
-    $tituloPagina = "Reservas Ativas";
+    $where .= " AND c.status <> 0";
+    $tituloPagina = "Ativas";
     $corBadge = "#dbeafe";
     $corTexto = "#1e40af";
 }
 
-/* ======================================================
-   CONSULTAS
-====================================================== */
-// Total
-$sqlCount = $pdo->prepare("SELECT COUNT(*) FROM clientes {$where}");
-$sqlCount->execute($params);
-$totalRegistros = $sqlCount->fetchColumn();
-
-// Soma de pessoas
-$sqlSoma = $pdo->prepare("SELECT SUM(num_pessoas) FROM clientes {$where}");
+// Total de Pessoas
+$sqlSoma = $pdo->prepare("SELECT SUM(num_pessoas) as total FROM clientes c $where");
 $sqlSoma->execute($params);
-$totalPessoas = $sqlSoma->fetchColumn() ?? 0;
+$totalPessoasFiltro = $sqlSoma->fetch(PDO::FETCH_ASSOC)['total'] ?? 0;
 
-// Lista
-$sqlLista = $pdo->prepare("
-    SELECT c.*,
-           (SELECT nome FROM login WHERE id = c.usuario_id LIMIT 1) AS nome_criador
-    FROM clientes c
-    {$where}
-    ORDER BY c.id DESC
+// Lista de Reservas
+$sqlLista = $pdo->prepare
+("
+SELECT c.*, u.nome as criador_nome
+FROM clientes c
+LEFT JOIN login u ON c.usuario_id = u.id
+$where
+ORDER BY c.id DESC
 ");
 $sqlLista->execute($params);
 $reservas = $sqlLista->fetchAll(PDO::FETCH_ASSOC);
 
-/* ======================================================
-   A PARTIR DAQUI É HTML (SEM header())
-====================================================== */
 require 'cabecalho.php';
-
 ?>
 
 <!DOCTYPE html>
@@ -122,38 +120,32 @@ require 'cabecalho.php';
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Reservas</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+    <title>Pesquisar Reservas</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-
     <style>
         :root {
             --primary: #2563eb;
             --bg-body: #f3f4f6;
             --bg-card: #ffffff;
-            --text-main: #1f2937;
             --border: #e5e7eb;
         }
 
         body {
             font-family: 'Inter', sans-serif;
             background: var(--bg-body);
-            color: var(--text-main);
-            margin: 0;
-            padding-bottom: 50px;
-            font-size: 0.9rem;
+            font-size: 0.85rem;
         }
 
         .main-wrapper {
-            max-width: 1400px;
+            max-width: 1500px;
             margin: 20px auto;
             padding: 0 15px;
         }
 
-        /* FILTROS */
         .filter-card {
             background: var(--bg-card);
-            padding: 20px;
+            padding: 15px;
             border-radius: 10px;
             box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
             margin-bottom: 20px;
@@ -161,108 +153,22 @@ require 'cabecalho.php';
 
         .filter-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-            gap: 15px;
+            grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+            gap: 10px;
             align-items: end;
-        }
-
-        .form-label {
-            font-size: 0.75rem;
-            font-weight: 600;
-            color: #6b7280;
-            display: block;
-            margin-bottom: 4px;
-            text-transform: uppercase;
         }
 
         .form-input {
             width: 100%;
-            padding: 8px;
+            padding: 6px;
             border: 1px solid var(--border);
             border-radius: 6px;
-            font-size: 0.9rem;
-            box-sizing: border-box;
+            font-size: 0.85rem;
         }
 
-        .btn-submit {
-            background: var(--primary);
-            color: white;
-            border: none;
-            padding: 9px 20px;
-            border-radius: 6px;
-            cursor: pointer;
-            font-weight: 500;
-            width: 100%;
-        }
-
-        /* BARRA DE AÇÃO */
-        .info-bar {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 15px;
-            flex-wrap: wrap;
-            gap: 10px;
-        }
-
-        .badge-total {
-            background:
-                <?= $corBadge ?>
-            ;
-            color:
-                <?= $corTextoBadge ?>
-            ;
-            padding: 6px 12px;
-            border-radius: 20px;
-            font-weight: 600;
-        }
-
-        .btn-group-actions {
-            display: flex;
-            gap: 10px;
-        }
-
-        .btn-new {
-            background: #10b981;
-            color: white;
-            text-decoration: none;
-            padding: 8px 15px;
-            border-radius: 6px;
-            font-weight: 500;
-            display: inline-flex;
-            align-items: center;
-            gap: 5px;
-        }
-
-        .btn-cancel {
-            background: #ef4444;
-            color: white;
-            text-decoration: none;
-            padding: 8px 15px;
-            border-radius: 6px;
-            font-weight: 500;
-            display: inline-flex;
-            align-items: center;
-            gap: 5px;
-        }
-
-        .btn-back {
-            background: #6b7280;
-            color: white;
-            text-decoration: none;
-            padding: 8px 15px;
-            border-radius: 6px;
-            font-weight: 500;
-            display: inline-flex;
-            align-items: center;
-            gap: 5px;
-        }
-
-        /* TABELA */
         .table-responsive {
             background: var(--bg-card);
             border-radius: 10px;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
             overflow-x: auto;
             border: 1px solid var(--border);
         }
@@ -270,198 +176,111 @@ require 'cabecalho.php';
         .data-table {
             width: 100%;
             border-collapse: collapse;
-            white-space: nowrap;
         }
 
         .data-table th {
             background: #f9fafb;
-            padding: 12px 15px;
-            text-align: left;
-            font-size: 0.75rem;
-            font-weight: 600;
+            padding: 10px;
+            font-size: 0.7rem;
             color: #6b7280;
             text-transform: uppercase;
             border-bottom: 1px solid var(--border);
         }
 
         .data-table td {
-            padding: 12px 15px;
+            padding: 10px;
             border-bottom: 1px solid #f3f4f6;
             vertical-align: top;
         }
 
-        .data-table tr:hover {
-            background: #f9fafb;
-        }
-
-        /* LINHA CANCELADA (Sem transparência, fundo levemente vermelho) */
         .row-cancelled td {
             background: #fff5f5;
-            color: #555;
-            /* Cor do texto normal para leitura fácil */
         }
 
-        /* ETIQUETA CANCELADO (Vermelho vivo com texto branco) */
-        .st-cancel {
-            background: #ff0000;
-            color: #ffffff;
-            padding: 4px 10px;
-            /* Um pouco mais gordinho para destacar */
-        }
-
-        /* SCROLL BOX */
         .scroll-box {
-            max-width: 220px;
-            max-height: 85px;
+            max-width: 180px;
+            max-height: 55px;
             overflow-y: auto;
-            overflow-x: hidden;
-
-            font-size: 0.8rem;
+            font-size: 0.75rem;
             background: #fff;
-            padding: 6px;
+            padding: 4px;
             border: 1px solid #e5e7eb;
             border-radius: 4px;
-            line-height: 1.4;
-
             white-space: normal;
-            word-break: break-word;
-            overflow-wrap: break-word;
+            line-height: 1.2;
         }
 
-        .scroll-box::-webkit-scrollbar {
-            width: 4px;
+        .obs-cliente-box {
+            border-left: 3px solid #2563eb;
+            background: #f0f7ff;
         }
 
-        .scroll-box::-webkit-scrollbar-thumb {
-            background: #ccc;
-            border-radius: 2px;
-        }
-
-        /* OUTROS */
-        .user-name {
-            font-weight: 600;
-            color: #333333 !important;
-            /* Cor Cinza Escuro/Preto */
-            display: block;
-            margin-bottom: 2px;
-        }
-
-        .status-badge {
-            padding: 3px 8px;
-            border-radius: 99px;
-            font-size: 0.7rem;
-            font-weight: 600;
-            text-transform: uppercase;
-        }
-
-        .st-active {
-            background: #d1fae5;
-            color: #065f46;
-        }
-
-        .st-cancel {
-            background: #fee2e2;
-            color: #991b1b;
+        .motivo-box {
+            border-left: 3px solid #dc3545;
+            color: #dc3545;
+            font-weight: 500;
         }
 
         .action-select {
-            padding: 5px;
+            padding: 4px;
             border-radius: 4px;
             border: 1px solid #d1d5db;
-            background: white;
-            font-size: 0.8rem;
+            font-size: 0.75rem;
+            width: 100%;
             cursor: pointer;
         }
 
-        .pagination {
-            display: flex;
-            justify-content: center;
-            gap: 5px;
-            margin-top: 20px;
+        .modal-ios-label {
+            font-weight: 600;
+            margin-top: 8px;
+            font-size: 0.8rem;
+            display: block;
         }
 
-        .page-btn {
-            padding: 6px 12px;
-            border: 1px solid var(--border);
-            background: white;
-            color: var(--text-main);
-            text-decoration: none;
-            border-radius: 4px;
-            font-size: 0.9rem;
-        }
-
-        .page-btn.active {
-            background: var(--primary);
-            color: white;
-            border-color: var(--primary);
-        }
-
-        @media (max-width: 768px) {
-            .filter-grid {
-                grid-template-columns: 1fr 1fr;
-            }
-
-            .data-table {
-                white-space: normal;
-            }
-
-            .data-table td {
-                max-width: 220px;
-            }
-
-            .scroll-box {
-                max-width: 100%;
-            }
-
-            .btn-submit-div {
-                grid-column: span 2;
-            }
+        .modal-ios-input {
+            margin-top: 4px;
+            border-radius: 8px !important;
+            border: 1px solid #d1d1d6 !important;
+            padding: 8px !important;
+            width: 100%;
         }
     </style>
 </head>
 
 <body>
-
     <div class="main-wrapper">
-
         <!-- FILTROS -->
         <div class="filter-card">
             <form method="GET" class="filter-grid">
-
-                <?php if ($verCanceladas): ?>
-                    <input type="hidden" name="canceladas" value="1">
-                <?php endif; ?>
-
-                <div><label class="form-label">Início</label><input type="date" name="data_inicio" class="form-input"
+                <?php if ($verCanceladas): ?><input type="hidden" name="canceladas" value="1"><?php endif; ?>
+                <div><label class="small fw-bold">Início</label><input type="date" name="data_inicio" class="form-input"
                         value="<?= $data_inicio ?>"></div>
-                <div><label class="form-label">Fim</label><input type="date" name="data_fim" class="form-input"
+                <div><label class="small fw-bold">Fim</label><input type="date" name="data_fim" class="form-input"
                         value="<?= $data_fim ?>"></div>
-                <div><label class="form-label">Hora De</label><input type="time" name="hora_inicio" class="form-input"
-                        value="<?= $hora_inicio ?>"></div>
-                <div><label class="form-label">Hora Até</label><input type="time" name="hora_fim" class="form-input"
-                        value="<?= $hora_fim ?>"></div>
-                <div style="grid-column: span 2;"><label class="form-label">Buscar</label><input type="text"
-                        name="busca" class="form-input" placeholder="Nome ou Telefone..."
+                <div style="grid-column: span 2;"><label class="small fw-bold">Busca</label><input type="text"
+                        name="busca" class="form-input" placeholder="Nome, Tel ou ID"
                         value="<?= htmlspecialchars($busca) ?>"></div>
-                <div class="btn-submit-div"><label class="form-label">&nbsp;</label><button type="submit"
-                        class="btn-submit">Filtrar</button></div>
+                <div><button type="submit" class="btn btn-primary btn-sm w-100">Filtrar</button></div>
             </form>
         </div>
 
-        <!-- BARRA DE AÇÃO -->
-        <div class="info-bar">
-            <span class="badge-total">
-                <i class="fas fa-chart-pie"></i>
-                <?= $tituloPagina ?>: <?= $totalRegistros ?> (Pax: <?= $totalPessoas ?>)
-            </span>
-
-
-            <div class="btn-group-actions">
+        <!-- RESUMO -->
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <div class="d-flex gap-2">
+                <span class="badge rounded-pill p-2 px-3 shadow-sm"
+                    style="background:<?= $corBadge ?>; color:<?= $corTexto ?>;">
+                    <?= $tituloPagina ?>: <?= count($reservas) ?>
+                </span>
+                <span class="badge rounded-pill p-2 px-3 bg-dark text-white">
+                    Pax Total: <?= $totalPessoasFiltro ?>
+                </span>
+            </div>
+            <div class="gap-2 d-flex">
                 <?php if ($verCanceladas): ?>
-                    <a href="pesquisar.php" class="btn-back"><i class="fas fa-arrow-left"></i> Voltar p/ Ativas</a>
+                    <a href="pesquisar.php" class="btn btn-secondary btn-sm">Ativas</a>
                 <?php else: ?>
-                    <a href="?canceladas=1" class="btn-cancel"><i class="fas fa-ban"></i> Ver Canceladas</a>
-                    <a href="adicionar_reserva.php" class="btn-new"><i class="fas fa-plus"></i> Nova Reserva</a>
+                    <a href="?canceladas=1" class="btn btn-outline-danger btn-sm">Canceladas</a>
+                    <a href="adicionar_reserva.php" class="btn btn-primary btn-sm">Nova</a>
                 <?php endif; ?>
             </div>
         </div>
@@ -471,150 +290,217 @@ require 'cabecalho.php';
             <table class="data-table">
                 <thead>
                     <tr>
-                        <th width="50">ID</th>
-                        <th width="200">Cliente</th>
-                        <th width="140">Data / Hora</th>
-                        <th width="60">Pax</th>
-                        <th width="80">Mesa</th>
-                        <th>Obs. Reserva</th>
-                        <th>Obs. Cliente</th>
-                        <th width="80">Status</th>
-                        <th width="100">Criado Por</th>
-                        <th width="100">Ações</th>
+                        <th>ID</th>
+                        <th>Cliente</th>
+                        <th>Data/Hora</th>
+                        <th>Pax</th>
+                        <th>Mesa</th>
+                        <th>Obs Reserva</th>
+                        <th>Obs Cliente</th>
+                        <th>Motivo Cancel.</th>
+                        <th>Registro</th>
+                        <th>Ações</th>
                     </tr>
                 </thead>
                 <tbody>
-                    <?php if (count($reservas) > 0): ?>
-                        <?php foreach ($reservas as $r):
-                            $status = (int) $r['status'];
-                            $nome = ucwords(strtolower($r['nome']));
-                            $telLimpo = preg_replace('/[^0-9]/', '', $r['telefone']);
-                            $dataShow = date('d/m/Y H:i', strtotime($r['data'] . ' ' . $r['horario']));
-                            $nomeCriador = !empty($r['nome_criador']) ? htmlspecialchars(ucwords(strtolower($r['nome_criador']))) : '---';
-                            $zapLink = "https://wa.me/55$telLimpo";
-                            ?>
-                            <tr class="<?= $status === 0 ? 'row-cancelled' : '' ?>">
-                                <td><strong>#<?= $r['id'] ?></strong></td>
-                                <td>
-                                    <span class="user-name"><?= $nome ?></span>
-                                    <span style="font-size:0.75rem; color:#666"><i class="fab fa-whatsapp"></i>
-                                        <?= $r['telefone'] ?></span>
-                                </td>
-                                <td><?= $dataShow ?></td>
-                                <td><strong><?= $r['num_pessoas'] ?></strong></td>
-                                <td><?= $r['num_mesa'] ?: '-' ?></td>
+                    <?php foreach ($reservas as $r):
+                        $status = (int) $r['status'];
+                        $tel = preg_replace('/\D/', '', $r['telefone']);
+                        $dataBr = date('d/m/Y', strtotime($r['data']));
+                        $hora = date('H:i', strtotime($r['horario']));
+                        $dataEmissao = !empty($r['data_emissao']) ? date('d/m/y H:i', strtotime($r['data_emissao'])) : 'N/D';
+                        $paramsZap = "{$tel}|{$r['nome']}|{$dataBr}|{$hora}|{$r['num_pessoas']}";
+                        ?>
+                        <tr class="<?= $status === 0 ? 'row-cancelled' : '' ?>">
+                            <td>#<?= $r['id'] ?></td>
+                            <td><span
+                                    class="fw-bold"><?= ucwords(strtolower($r['nome'])) ?></span><br><small><?= $r['telefone'] ?></small>
+                            </td>
+                            <td><?= $dataBr ?><br><b><?= $hora ?></b></td>
+                            <td class="text-center"><b><?= $r['num_pessoas'] ?></b></td>
+                            <td><?= $r['num_mesa'] ?: '-' ?></td>
 
-                                <td>
-                                    <?php if ($r['observacoes']): ?>
-                                        <div class="scroll-box"><?= nl2br(htmlspecialchars($r['observacoes'])) ?></div>
-                                    <?php else: ?> - <?php endif; ?>
-                                </td>
+                            <!-- Obs da Reserva (Específica deste dia) -->
+                            <td>
+                                <div class="scroll-box"><?= htmlspecialchars($r['observacoes'] ?? '') ?></div>
+                            </td>
 
-                                <td>
-                                    <?php if ($r['obsCliente']): ?>
-                                        <div class="scroll-box" style="border-left: 2px solid var(--primary);">
-                                            <?= nl2br(htmlspecialchars($r['obsCliente'])) ?>
-                                        </div>
-                                    <?php else: ?> - <?php endif; ?>
-                                </td>
+                            <!-- Obs do Cliente (Notas fixas do cadastro dele) -->
+                            <td>
+                                <div class="scroll-box obs-cliente-box"><?= htmlspecialchars($r['obsCliente'] ?? '') ?>
+                                </div>
+                            </td>
 
-                                <td>
-                                    <span class="status-badge <?= $status === 0 ? 'st-cancel' : 'st-active' ?>">
-                                        <?= $status === 0 ? 'Cancelado' : 'Ativo' ?>
-                                    </span>
-                                </td>
+                            <!-- Motivo Cancelamento (Só aparece se cancelado) -->
+                            <td>
+                                <?php if ($status === 0): ?>
+                                    <div class="scroll-box motivo-box">
+                                        <?= htmlspecialchars($r['motivo_cancelamento'] ?? 'N/I') ?>
+                                    </div>
+                                <?php else: ?> - <?php endif; ?>
+                            </td>
 
-                                <td style="font-size:0.85rem;"><?= $nomeCriador ?></td>
+                            <td style="font-size: 0.65rem;">
+                                <i class="fas fa-user"></i> <?= ucwords(strtolower($r['criador_nome'] ?? 'Sist.')) ?><br>
+                                <i class="fas fa-clock"></i> <?= $dataEmissao ?>
+                            </td>
 
-                                <td>
-                                    <select class="action-select" onchange="handleAction(this)">
-                                        <option value="" selected>Opções</option>
-
-                                        <option value="<?= $zapLink ?>">📲 WhatsApp</option>
-                                        <option value="obsCliente.php?id=<?= $r['id'] ?>">📝 Obs Cliente</option>
-
-                                        <?php if ($status === 0): ?>
-                                            <option value="ativar_reserva.php?id=<?= $r['id'] ?>">✅ Reativar</option>
-                                        <?php else: ?>
-                                            <option value="editar_reserva.php?id=<?= $r['id'] ?>">✏️ Editar</option>
-                                            <option value="cancelar:<?= $r['id'] ?>">❌ Cancelar</option>
-                                        <?php endif; ?>
-                                    </select>
-                                </td>
-
-                            </tr>
-                        <?php endforeach; ?>
-                    <?php else: ?>
-                        <tr>
-                            <td colspan="10" style="text-align:center; padding:30px; color:#999;">Nenhum registro
-                                encontrado.</td>
+                            <td>
+                                <select class="action-select" onchange="handleAction(this)">
+                                    <option value="">Opções</option>
+                                    <option value="whatsapp:<?= $paramsZap ?>">📲 WhatsApp</option>
+                                    <option value="obs:<?= $r['id'] ?>">📝 Obs Cliente</option>
+                                    <?php if ($status !== 0): ?>
+                                        <option value="editar:<?= $r['id'] ?>">✏️ Editar</option>
+                                        <option value="cancelar:<?= $r['id'] ?>">❌ Cancelar</option>
+                                    <?php else: ?>
+                                        <option value="reativar:<?= $r['id'] ?>|<?= ucwords(strtolower($r['nome'])) ?>">✅
+                                            Reativar</option>
+                                    <?php endif; ?>
+                                </select>
+                            </td>
                         </tr>
-                    <?php endif; ?>
+                    <?php endforeach; ?>
                 </tbody>
             </table>
         </div>
-
-
-
     </div>
-    <!-- MODAL CANCELAR -->
-    <div class="modal fade" id="modalCancelar" tabindex="-1">
-        <div class="modal-dialog modal-sm">
+
+    <!-- MODAIS -->
+    <!-- 1. Editar -->
+    <div class="modal fade" id="modalEditar" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
-                <form method="POST">
-                    <input type="hidden" name="id" id="cancelarId">
-                    <input type="hidden" name="cancelar_reserva" value="1">
+                <div class="modal-header bg-primary text-white">
+                    <h6>Editar Reserva</h6><button type="button" class="btn-close btn-close-white"
+                        data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="formEditar">
+                        <input type="hidden" name="id_reserva" id="edit_id">
+                        <label class="modal-ios-label">Nome:</label><input type="text" name="nome" id="edit_nome"
+                            class="modal-ios-input">
+                        <div class="row g-2">
+                            <div class="col-6"><label class="modal-ios-label">Data:</label><input type="date"
+                                    name="data" id="edit_data" class="modal-ios-input"></div>
+                            <div class="col-6"><label class="modal-ios-label">Hora:</label><input type="time"
+                                    name="horario" id="edit_horario" class="modal-ios-input"></div>
+                        </div>
+                        <div class="row g-2">
+                            <div class="col-6"><label class="modal-ios-label">Pax:</label><input type="number"
+                                    name="num_pessoas" id="edit_num_pessoas" class="modal-ios-input"></div>
+                            <div class="col-6"><label class="modal-ios-label">Mesa:</label><input type="text"
+                                    name="num_mesa" id="edit_num_mesa" class="modal-ios-input"></div>
+                        </div>
+                        <label class="modal-ios-label">Obs Cliente (Fixo):</label><textarea name="obsCliente"
+                            id="edit_obsCliente_geral" class="modal-ios-input" rows="2"></textarea>
+                        <label class="modal-ios-label">Obs Reserva (Hoje):</label><textarea name="observacoes"
+                            id="edit_observacoes" class="modal-ios-input" rows="2"></textarea>
+                    </form><button class="btn btn-primary w-100 mt-3" onclick="salvarEdicao()">Salvar
+                        Alterações</button>
+                </div>
+            </div>
+        </div>
+    </div>
 
-                    <div class="modal-header">
-                        <h5 class="modal-title">Cancelar reserva</h5>
-                        <button type="button" class="close" data-dismiss="modal">&times;</button>
+    <!-- 2. Obs Cliente Rápido -->
+    <div class="modal fade" id="modalObsCliente" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-dark text-white">
+                    <h6>Observação do Cliente</h6><button type="button" class="btn-close btn-close-white"
+                        data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="formObsCliente">
+                        <input type="hidden" name="id_reserva_obs" id="obs_id">
+                        <textarea name="obsCliente" id="edit_obsCliente" class="modal-ios-input" rows="6"
+                            placeholder="Notas sobre o cliente..."></textarea>
+                    </form><button class="btn btn-dark w-100 mt-3" onclick="salvarObsCliente()">Salvar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 3. Cancelar -->
+    <div class="modal fade" id="modalCancelar" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered modal-sm">
+            <div class="modal-content">
+                <form method="POST"><input type="hidden" name="id" id="cancelarId"><input type="hidden"
+                        name="cancelar_reserva" value="1">
+                    <div class="modal-header bg-danger text-white">
+                        <h6>Cancelar</h6>
                     </div>
-
-                    <div class="modal-body">
-                        <label class="form-label">Motivo</label>
-                        <select name="motivo_cancelamento[]" class="form-control" multiple required>
+                    <div class="modal-body"><select name="motivo_cancelamento[]" class="form-select" multiple required>
                             <option>Mudança de planos</option>
                             <option>Problemas de saúde</option>
-                            <option>Problemas financeiros</option>
                             <option>Erro na reserva</option>
-                        </select>
-                    </div>
-
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Voltar</button>
-                        <button type="submit" class="btn btn-danger">Confirmar</button>
-                    </div>
+                            <option>Não informou</option>
+                        </select></div>
+                    <div class="modal-footer"><button type="submit"
+                            class="btn btn-danger btn-sm w-100">Confirmar</button></div>
                 </form>
             </div>
         </div>
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        const mEditar = new bootstrap.Modal(document.getElementById('modalEditar'));
+        const mObs = new bootstrap.Modal(document.getElementById('modalObsCliente'));
+        const mCancel = new bootstrap.Modal(document.getElementById('modalCancelar'));
+
+        function handleAction(select) {
+            const val = select.value; if (!val) return;
+            const idx = val.indexOf(':');
+            const action = val.substring(0, idx);
+            const data = val.substring(idx + 1);
+
+            if (action === 'whatsapp') {
+                const p = data.split('|');
+                const msg = encodeURIComponent(`Olá ${p[1]}! Gostaria de confirmar sua reserva para o dia ${p[2]} às ${p[3]} para ${p[4]} pessoas.`);
+                window.open(`https://wa.me/55${p[0]}?text=${msg}`, '_blank');
+            }
+            if (action === 'editar') {
+                fetch(`pesquisar.php?acao=get_reserva&id=${data}`).then(r => r.json()).then(res => {
+                    document.getElementById('edit_id').value = res.id;
+                    document.getElementById('edit_nome').value = res.nome;
+                    document.getElementById('edit_data').value = res.data;
+                    document.getElementById('edit_horario').value = res.horario;
+                    document.getElementById('edit_num_pessoas').value = res.num_pessoas;
+                    document.getElementById('edit_num_mesa').value = res.num_mesa;
+                    document.getElementById('edit_obsCliente_geral').value = res.obsCliente || '';
+                    document.getElementById('edit_observacoes').value = res.observacoes;
+                    mEditar.show();
+                });
+            }
+            if (action === 'obs') {
+                fetch(`pesquisar.php?acao=get_reserva&id=${data}`).then(r => r.json()).then(res => {
+                    document.getElementById('obs_id').value = res.id;
+                    document.getElementById('edit_obsCliente').value = res.obsCliente || '';
+                    mObs.show();
+                });
+            }
+            if (action === 'cancelar') { document.getElementById('cancelarId').value = data; mCancel.show(); }
+            if (action === 'reativar') {
+                const id = data.split('|')[0];
+                if (confirm("Deseja reativar esta reserva?")) {
+                    const fd = new FormData(); fd.append('acao', 'reativar_reserva'); fd.append('id', id);
+                    fetch('pesquisar.php', { method: 'POST', body: fd }).then(() => location.reload());
+                }
+            }
+            select.selectedIndex = 0;
+        }
+
+        function salvarEdicao() {
+            const fd = new FormData(document.getElementById('formEditar')); fd.append('acao', 'salvar_edicao');
+            fetch('pesquisar.php', { method: 'POST', body: fd }).then(r => r.json()).then(res => { if (res.success) location.reload(); });
+        }
+        function salvarObsCliente() {
+            const fd = new FormData(document.getElementById('formObsCliente')); fd.append('acao', 'salvar_obs_cliente');
+            fetch('pesquisar.php', { method: 'POST', body: fd }).then(r => r.json()).then(res => { if (res.success) location.reload(); });
+        }
+    </script>
 </body>
 
 </html>
-
-<script>
-    function handleAction(selectEl) {
-        const val = selectEl.value;
-
-        if (!val) return;
-
-        // se for cancelar, abre o modal
-        if (val.startsWith("cancelar:")) {
-            const id = val.split(":")[1];
-            abrirModalCancelamento(id);
-
-            // volta o select para "Opções"
-            selectEl.selectedIndex = 0;
-            return;
-        }
-
-        // qualquer outra opção navega normal
-        window.location.href = val;
-    }
-
-    function abrirModalCancelamento(id) {
-        document.getElementById('cancelarId').value = id;
-        $('#modalCancelar').modal('show');
-    }
-</script>

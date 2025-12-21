@@ -14,7 +14,6 @@ if (empty($_SESSION['mmnlogin'])) {
 $dateStart = $_GET['inicio'] ?? date('Y-m-01');
 $dateEnd   = $_GET['fim'] ?? date('Y-m-t');
 
-// Gerar array de todos os dias do intervalo (para o gráfico não ter buracos)
 $periodo = new DatePeriod(
     new DateTime($dateStart),
     new DateInterval('P1D'),
@@ -22,16 +21,14 @@ $periodo = new DatePeriod(
 );
 $timelineData = [];
 foreach ($periodo as $dt) {
-    $timelineData[$dt->format("Y-m-d")] = ['qtd' => 0, 'pax' => 0];
+    $timelineData[$dt->format("Y-m-d")] = ['pax' => 0];
 }
 
 /* ==========================================================
    2. CONSULTA AO BANCO
 ========================================================== */
 $stmt = $pdo->prepare("
-    SELECT id, nome, data, num_pessoas, horario, telefone, 
-           tipo_evento, forma_pagamento, observacoes, 
-           data_emissao, status, motivo_cancelamento
+    SELECT nome, data, num_pessoas, telefone, status, forma_pagamento
     FROM clientes
     WHERE data BETWEEN :inicio AND :fim
     ORDER BY data ASC
@@ -40,457 +37,258 @@ $stmt->execute(['inicio' => $dateStart, 'fim' => $dateEnd]);
 $dados = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 /* ==========================================================
-   3. PROCESSAMENTO DE DADOS (BI)
+   3. PROCESSAMENTO (BI + CRM)
 ========================================================== */
-
-// --- KPI GERAIS ---
-$kpis = [
-    'total_reservas' => 0, 'total_pax' => 0, 'canceladas' => 0,
-    'antecedencia_soma' => 0, 'antecedencia_qtd' => 0
-];
-
-// --- GRUPOS (OS 8 CARDS) ---
+$kpis = ['res' => 0, 'pax' => 0, 'canc' => 0];
 $grupos = [
-    '2_4'   => ['reservas' => 0, 'pax' => 0], // Pequenos (Casais/Famílias)
-    '5_10'  => ['reservas' => 0, 'pax' => 0], // Médios
-    '11_20' => ['reservas' => 0, 'pax' => 0], // Grandes
-    '21_plus' => ['reservas' => 0, 'pax' => 0] // Eventos
+    'pequeno' => ['res' => 0, 'pax' => 0], // 1-4
+    'medio'   => ['res' => 0, 'pax' => 0], // 5-10
+    'grande'  => ['res' => 0, 'pax' => 0], // 11-20
+    'evento'  => ['res' => 0, 'pax' => 0], // 21+
 ];
-
-// --- GRÁFICOS ---
 $graficos = [
-    'pagamento' => [], 'eventos' => [], 'motivos_cancel' => [],
+    'pagamento' => [],
     'dias_semana' => array_fill_keys(['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'], 0)
 ];
-
-$clientes = []; // Para cálculo de fidelidade
+$clientes = [];
 
 foreach ($dados as $row) {
     $pax = (int)$row['num_pessoas'];
-    
-    // Totalizadores Gerais
-    $kpis['total_reservas']++;
-    $kpis['total_pax'] += $pax;
+    $kpis['res']++;
+    $kpis['pax'] += $pax;
 
-    // 1. Análise de Cancelamento
-    if ($row['status'] == 0 || !empty($row['motivo_cancelamento'])) { 
-        $kpis['canceladas']++;
-        $motivo = $row['motivo_cancelamento'] ?: 'Não informado';
-        $graficos['motivos_cancel'][$motivo] = ($graficos['motivos_cancel'][$motivo] ?? 0) + 1;
+    if ($row['status'] == 0) {
+        $kpis['canc']++;
     } else {
-        // --- DADOS DE RESERVAS VÁLIDAS ---
-
-        // 2. Timeline Diária
+        // Timeline (Gráfico de Palitos)
         if (isset($timelineData[$row['data']])) {
-            $timelineData[$row['data']]['qtd']++;
             $timelineData[$row['data']]['pax'] += $pax;
         }
 
-        // 3. Classificação por Grupos (Os 8 Cards)
-        if ($pax <= 4) {
-            $grupos['2_4']['reservas']++;
-            $grupos['2_4']['pax'] += $pax;
-        } elseif ($pax <= 10) {
-            $grupos['5_10']['reservas']++;
-            $grupos['5_10']['pax'] += $pax;
-        } elseif ($pax <= 20) {
-            $grupos['11_20']['reservas']++;
-            $grupos['11_20']['pax'] += $pax;
-        } else {
-            $grupos['21_plus']['reservas']++;
-            $grupos['21_plus']['pax'] += $pax;
-        }
+        // Unificação dos Grupos nos Cards
+        if ($pax <= 4) { $grupos['pequeno']['res']++; $grupos['pequeno']['pax'] += $pax; }
+        elseif ($pax <= 10) { $grupos['medio']['res']++; $grupos['medio']['pax'] += $pax; }
+        elseif ($pax <= 20) { $grupos['grande']['res']++; $grupos['grande']['pax'] += $pax; }
+        else { $grupos['evento']['res']++; $grupos['evento']['pax'] += $pax; }
 
-        // 4. Pagamento e Eventos
-        $pag = $row['forma_pagamento'] ?: 'Não def.';
+        $pag = $row['forma_pagamento'] ?: 'Outros';
         $graficos['pagamento'][$pag] = ($graficos['pagamento'][$pag] ?? 0) + 1;
 
-        $evt = $row['tipo_evento'] ?: 'Normal';
-        $graficos['eventos'][$evt] = ($graficos['eventos'][$evt] ?? 0) + 1;
-
-        // 5. Dia da Semana
-        $diaSemana = ["Sun"=>"Dom","Mon"=>"Seg","Tue"=>"Ter","Wed"=>"Qua","Thu"=>"Qui","Fri"=>"Sex","Sat"=>"Sáb"];
         $d = date('D', strtotime($row['data']));
-        $graficos['dias_semana'][$diaSemana[$d]] += $pax;
+        $diaMap = ["Sun"=>"Dom","Mon"=>"Seg","Tue"=>"Ter","Wed"=>"Qua","Thu"=>"Qui","Fri"=>"Sex","Sat"=>"Sáb"];
+        $graficos['dias_semana'][$diaMap[$d]] += $pax;
     }
 
-    // 6. Lead Time (Antecedência)
-    if (!empty($row['data_emissao'])) {
-        $dtReserva = new DateTime($row['data']);
-        $dtEmissao = new DateTime($row['data_emissao']);
-        $dtReserva->setTime(0,0); $dtEmissao->setTime(0,0);
-        if ($dtReserva >= $dtEmissao) {
-            $diff = $dtEmissao->diff($dtReserva);
-            $kpis['antecedencia_soma'] += $diff->days;
-            $kpis['antecedencia_qtd']++;
-        }
-    }
-
-    // 7. Fidelidade (Agrupamento por telefone)
+    // CRM Detalhado
     $tel = preg_replace('/\D/', '', $row['telefone']);
     if(!empty($tel)) {
-        if(!isset($clientes[$tel])) $clientes[$tel] = ['datas' => []];
-        $clientes[$tel]['datas'][] = $row['data'];
-    }
-}
-
-// --- CÁLCULOS FINAIS ---
-$mediaAntecedencia = $kpis['antecedencia_qtd'] > 0 ? round($kpis['antecedencia_soma'] / $kpis['antecedencia_qtd']) : 0;
-$taxaCancelamento = $kpis['total_reservas'] > 0 ? round(($kpis['canceladas'] / $kpis['total_reservas']) * 100, 1) : 0;
-
-// Cálculo Média de Retorno (Frequência)
-$somaDias = 0; $qtdRetornos = 0;
-foreach ($clientes as $cli) {
-    if (count($cli['datas']) > 1) {
-        sort($cli['datas']);
-        for ($i = 1; $i < count($cli['datas']); $i++) {
-            $d1 = new DateTime($cli['datas'][$i-1]);
-            $d2 = new DateTime($cli['datas'][$i]);
-            $somaDias += $d1->diff($d2)->days;
-            $qtdRetornos++;
+        if(!isset($clientes[$tel])) {
+            $clientes[$tel] = ['nome' => $row['nome'], 'visitas' => 0, 'pax_total' => 0, 'ultima' => $row['data']];
         }
+        $clientes[$tel]['visitas']++;
+        $clientes[$tel]['pax_total'] += $pax;
+        if($row['data'] > $clientes[$tel]['ultima']) $clientes[$tel]['ultima'] = $row['data'];
     }
 }
-$cicloRetorno = $qtdRetornos > 0 ? round($somaDias / $qtdRetornos) : "—";
 
-// Lógica de largura do gráfico de timeline
-$numDiasGrafico = count($timelineData);
-$larguraCanvas = $numDiasGrafico > 31 ? ($numDiasGrafico * 40) . 'px' : '100%';
+uasort($clientes, function($a, $b) { return $b['visitas'] <=> $a['visitas']; });
+$topClientes = array_slice($clientes, 0, 6);
+
+$larguraCanvas = count($timelineData) > 31 ? (count($timelineData) * 40) . 'px' : '100%';
 ?>
 
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <title>Dashboard Master</title>
+    <title>Business Intelligence | ReservaPro</title>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
     <style>
-        :root { --bg-body: #f3f4f6; --primary: #4361ee; }
-        body { background-color: var(--bg-body); font-family: 'Segoe UI', sans-serif; padding-bottom: 50px; }
+        :root { --primary: #4f46e5; --slate-100: #f1f5f9; --slate-800: #1e293b; }
+        body { background-color: #f8fafc; font-family: 'Plus Jakarta Sans', sans-serif; color: var(--slate-800); }
         
-        /* CARD PRINCIPAL */
-        .stat-card {
-            background: white; border-radius: 12px; padding: 20px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.03); border: none; height: 100%;
-            transition: transform 0.2s;
+        /* Estilo dos Cards Unificados */
+        .card-combined {
+            background: white; border-radius: 16px; padding: 20px;
+            border: 1px solid var(--slate-100); box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+            transition: 0.3s; height: 100%;
         }
-        .stat-card:hover { transform: translateY(-3px); }
-        .stat-icon { width: 45px; height: 45px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1.4rem; margin-bottom: 10px; }
-        .stat-val { font-size: 1.8rem; font-weight: 800; color: #1e293b; line-height: 1; }
-        .stat-lbl { color: #64748b; font-size: 0.85rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
-        .stat-desc { font-size: 0.8rem; color: #94a3b8; margin-top: 5px; }
+        .card-combined:hover { transform: translateY(-3px); box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); }
+        .card-label { font-size: 0.75rem; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.025em; }
+        .val-main { font-size: 1.75rem; font-weight: 800; display: block; line-height: 1.2; }
+        .val-sub { font-size: 0.875rem; color: #64748b; display: flex; align-items: center; gap: 5px; margin-top: 5px; }
 
-        /* CARDS DE GRUPOS (Os 8 cards) */
-        .group-card {
-            background: white; border-left: 4px solid #ccc; border-radius: 8px; padding: 15px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.02); margin-bottom: 15px;
-        }
-        .gc-title { font-size: 0.85rem; font-weight: 700; color: #555; text-transform: uppercase; }
-        .gc-val { font-size: 1.5rem; font-weight: 800; color: #333; }
-        .gc-sub { font-size: 0.8rem; color: #888; }
+        .chart-container { background: white; border-radius: 20px; padding: 25px; border: 1px solid var(--slate-100); }
+        .table-crm { font-size: 0.85rem; }
+        .table-crm th { font-size: 0.7rem; text-transform: uppercase; color: #94a3b8; border: none; }
+        .badge-status { padding: 5px 10px; border-radius: 6px; font-weight: 700; font-size: 0.7rem; }
         
-        /* Cores dos Grupos */
-        .border-blue { border-left-color: #3b82f6; }
-        .border-green { border-left-color: #10b981; }
-        .border-orange { border-left-color: #f59e0b; }
-        .border-purple { border-left-color: #8b5cf6; }
-
-        /* Gráfico Scroll */
-        .scroll-chart-container {
-            overflow-x: auto;
-            white-space: nowrap;
-            padding-bottom: 10px;
-        }
-        .chart-wrapper-scroll {
-            height: 350px;
-            display: inline-block;
-        }
-
-        /* Títulos de Seção */
-        .section-header { font-size: 1.1rem; font-weight: 700; color: #374151; margin: 30px 0 15px 0; border-left: 4px solid var(--primary); padding-left: 10px; }
+        .border-pequeno { border-top: 4px solid #6366f1; }
+        .border-medio { border-top: 4px solid #10b981; }
+        .border-grande { border-top: 4px solid #f59e0b; }
+        .border-evento { border-top: 4px solid #ec4899; }
         
-        .filter-bar { background: white; padding: 15px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.03); display: flex; gap: 15px; align-items: flex-end; flex-wrap: wrap;}
+        .filter-bar { background: white; padding: 15px 25px; border-radius: 100px; border: 1px solid var(--slate-100); margin-bottom: 30px; }
     </style>
 </head>
 <body>
 
 <div class="container-fluid px-4 py-4">
     
-    <!-- 1. HEADER E FILTROS -->
-    <div class="row mb-4 align-items-center">
-        <div class="col-md-6">
-            <h3 class="fw-bold m-0"><i class="bi bi-bar-chart-line-fill text-primary"></i> Analytics do Restaurante</h3>
-            <small class="text-muted">Análise estratégica de demanda, grupos e fidelidade.</small>
+    <!-- HEADER & FILTROS -->
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 fw-800 mb-1">Dashboard Estratégico</h1>
+            <p class="text-muted small">Análise de fluxo diário e comportamento do cliente.</p>
         </div>
-        <div class="col-md-6">
-            <form method="GET" class="filter-bar justify-content-end">
-                <div>
-                    <label class="small fw-bold">Data Início</label>
-                    <input type="date" name="inicio" class="form-control form-control-sm" value="<?= $dateStart ?>">
-                </div>
-                <div>
-                    <label class="small fw-bold">Data Fim</label>
-                    <input type="date" name="fim" class="form-control form-control-sm" value="<?= $dateEnd ?>">
-                </div>
-                <button class="btn btn-primary btn-sm fw-bold px-4"><i class="bi bi-filter"></i> Filtrar</button>
-            </form>
-        </div>
+        <form class="filter-bar d-flex gap-3 align-items-center">
+            <input type="date" name="inicio" class="form-control form-control-sm border-0" value="<?= $dateStart ?>">
+            <span class="text-muted">até</span>
+            <input type="date" name="fim" class="form-control form-control-sm border-0" value="<?= $dateEnd ?>">
+            <button class="btn btn-primary btn-sm px-4 rounded-pill fw-bold">Atualizar</button>
+        </form>
     </div>
 
-    <!-- 2. KPI GERAIS (LINHA 1) -->
-    <div class="row g-3">
-        <div class="col-xl-3 col-md-6">
-            <div class="stat-card">
-                <div class="d-flex justify-content-between">
-                    <div>
-                        <div class="stat-lbl">Reservas Totais</div>
-                        <div class="stat-val"><?= $kpis['total_reservas'] ?></div>
-                    </div>
-                    <div class="stat-icon bg-primary bg-opacity-10 text-primary"><i class="bi bi-journal-check"></i></div>
-                </div>
-                <div class="stat-desc">Total de <?= $kpis['total_pax'] ?> pessoas esperadas.</div>
+    <!-- 1. CARDS UNIFICADOS (RESERVAS + PESSOAS) -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-3">
+            <div class="card-combined border-pequeno">
+                <span class="card-label">Grupos Pequenos (1-4)</span>
+                <span class="val-main"><?= $grupos['pequeno']['res'] ?> <small class="fs-6 fw-normal text-muted">res.</small></span>
+                <span class="val-sub"><i class="bi bi-people-fill text-primary"></i> <?= $grupos['pequeno']['pax'] ?> pessoas totais</span>
             </div>
         </div>
-        <div class="col-xl-3 col-md-6">
-            <div class="stat-card">
-                <div class="d-flex justify-content-between">
-                    <div>
-                        <div class="stat-lbl">Antecedência</div>
-                        <div class="stat-val"><?= $mediaAntecedencia ?> <span class="fs-6 text-muted">dias</span></div>
-                    </div>
-                    <div class="stat-icon bg-info bg-opacity-10 text-info"><i class="bi bi-hourglass-split"></i></div>
-                </div>
-                <div class="stat-desc">Média entre ligar e consumir.</div>
+        <div class="col-md-3">
+            <div class="card-combined border-medio">
+                <span class="card-label">Grupos Médios (5-10)</span>
+                <span class="val-main"><?= $grupos['medio']['res'] ?> <small class="fs-6 fw-normal text-muted">res.</small></span>
+                <span class="val-sub"><i class="bi bi-people-fill text-success"></i> <?= $grupos['medio']['pax'] ?> pessoas totais</span>
             </div>
         </div>
-        <div class="col-xl-3 col-md-6">
-            <div class="stat-card">
-                <div class="d-flex justify-content-between">
-                    <div>
-                        <div class="stat-lbl">Ciclo de Retorno</div>
-                        <div class="stat-val"><?= $cicloRetorno ?> <span class="fs-6 text-muted">dias</span></div>
-                    </div>
-                    <div class="stat-icon bg-warning bg-opacity-10 text-warning"><i class="bi bi-arrow-repeat"></i></div>
-                </div>
-                <div class="stat-desc">Frequência média do cliente fiel.</div>
+        <div class="col-md-3">
+            <div class="card-combined border-grande">
+                <span class="card-label">Grupos Grandes (11-20)</span>
+                <span class="val-main"><?= $grupos['grande']['res'] ?> <small class="fs-6 fw-normal text-muted">res.</small></span>
+                <span class="val-sub"><i class="bi bi-people-fill text-warning"></i> <?= $grupos['grande']['pax'] ?> pessoas totais</span>
             </div>
         </div>
-        <div class="col-xl-3 col-md-6">
-            <div class="stat-card">
-                <div class="d-flex justify-content-between">
-                    <div>
-                        <div class="stat-lbl">Taxa Cancelamento</div>
-                        <div class="stat-val text-danger"><?= $taxaCancelamento ?>%</div>
-                    </div>
-                    <div class="stat-icon bg-danger bg-opacity-10 text-danger"><i class="bi bi-x-circle"></i></div>
-                </div>
-                <div class="stat-desc"><?= $kpis['canceladas'] ?> reservas canceladas.</div>
+        <div class="col-md-3">
+            <div class="card-combined border-evento">
+                <span class="card-label">Eventos (21+)</span>
+                <span class="val-main"><?= $grupos['evento']['res'] ?> <small class="fs-6 fw-normal text-muted">res.</small></span>
+                <span class="val-sub"><i class="bi bi-people-fill text-danger"></i> <?= $grupos['evento']['pax'] ?> pessoas totais</span>
             </div>
         </div>
     </div>
 
-    <!-- 3. ANÁLISE PROFUNDA DE GRUPOS (OS 8 CARDS PEDIDOS) -->
-    <div class="section-header">Segmentação por Tamanho de Grupo</div>
-    <div class="row g-3">
-        <!-- Pequenos (1-4) -->
-        <div class="col-md-3">
-            <div class="group-card border-blue">
-                <div class="d-flex justify-content-between">
-                    <div>
-                        <div class="gc-title text-primary">Pequenos (1-4)</div>
-                        <div class="gc-val"><?= $grupos['2_4']['reservas'] ?> <small class="fs-6 text-muted">reservas</small></div>
-                    </div>
-                    <i class="bi bi-person text-primary fs-3 opacity-50"></i>
-                </div>
-            </div>
-            <div class="group-card border-blue">
-                <div class="gc-title text-primary">Pessoas (Vol. 1-4)</div>
-                <div class="gc-val"><?= $grupos['2_4']['pax'] ?> <small class="fs-6 text-muted">pax</small></div>
-                <div class="gc-sub">Alta rotatividade de mesa.</div>
-            </div>
-        </div>
-
-        <!-- Médios (5-10) -->
-        <div class="col-md-3">
-            <div class="group-card border-green">
-                <div class="d-flex justify-content-between">
-                    <div>
-                        <div class="gc-title text-success">Médios (5-10)</div>
-                        <div class="gc-val"><?= $grupos['5_10']['reservas'] ?> <small class="fs-6 text-muted">reservas</small></div>
-                    </div>
-                    <i class="bi bi-people text-success fs-3 opacity-50"></i>
-                </div>
-            </div>
-            <div class="group-card border-green">
-                <div class="gc-title text-success">Pessoas (Vol. 5-10)</div>
-                <div class="gc-val"><?= $grupos['5_10']['pax'] ?> <small class="fs-6 text-muted">pax</small></div>
-                <div class="gc-sub">Ideal para junção de 2 mesas.</div>
-            </div>
-        </div>
-
-        <!-- Grandes (11-20) -->
-        <div class="col-md-3">
-            <div class="group-card border-orange">
-                <div class="d-flex justify-content-between">
-                    <div>
-                        <div class="gc-title text-warning">Grandes (11-20)</div>
-                        <div class="gc-val"><?= $grupos['11_20']['reservas'] ?> <small class="fs-6 text-muted">reservas</small></div>
-                    </div>
-                    <i class="bi bi-people-fill text-warning fs-3 opacity-50"></i>
-                </div>
-            </div>
-            <div class="group-card border-orange">
-                <div class="gc-title text-warning">Pessoas (Vol. 11-20)</div>
-                <div class="gc-val"><?= $grupos['11_20']['pax'] ?> <small class="fs-6 text-muted">pax</small></div>
-                <div class="gc-sub">Exige garçom dedicado.</div>
-            </div>
-        </div>
-
-        <!-- Eventos (21+) -->
-        <div class="col-md-3">
-            <div class="group-card border-purple">
-                <div class="d-flex justify-content-between">
-                    <div>
-                        <div class="gc-title text-info">Eventos (21+)</div>
-                        <div class="gc-val"><?= $grupos['21_plus']['reservas'] ?> <small class="fs-6 text-muted">reservas</small></div>
-                    </div>
-                    <i class="bi bi-balloon-fill text-info fs-3 opacity-50"></i>
-                </div>
-            </div>
-            <div class="group-card border-purple">
-                <div class="gc-title text-info">Pessoas (Vol. 21+)</div>
-                <div class="gc-val"><?= $grupos['21_plus']['pax'] ?> <small class="fs-6 text-muted">pax</small></div>
-                <div class="gc-sub">Área exclusiva necessária.</div>
+    <!-- 2. GRÁFICO DE PALITOS (EVOLUÇÃO DIÁRIA PAX) -->
+    <div class="chart-container mb-4">
+        <h6 class="fw-800 mb-4">Evolução Diária de Pessoas (Pax)</h6>
+        <div class="overflow-x-auto">
+            <div style="height: 300px; width: <?= $larguraCanvas ?>;">
+                <canvas id="paxChart"></canvas>
             </div>
         </div>
     </div>
 
-    <!-- 4. TIMELINE COM SCROLL (EVOLUÇÃO DIÁRIA) -->
-    <div class="section-header">Fluxo Diário (Todos os Dias)</div>
-    <div class="card p-3 shadow-sm border-0">
-        <div class="scroll-chart-container">
-            <!-- A largura é definida dinamicamente no PHP -->
-            <div class="chart-wrapper-scroll" style="width: <?= $larguraCanvas ?>;">
-                <canvas id="chartTimeline"></canvas>
-            </div>
-        </div>
-        <small class="text-muted mt-2 text-center d-block"><i class="bi bi-arrows-expand"></i> Role horizontalmente para ver todo o período caso ultrapasse 30 dias.</small>
-    </div>
-
-    <!-- 5. GRÁFICOS OPERACIONAIS INFERIORES -->
-    <div class="row g-3 mt-3">
-        <!-- Pagamento -->
-        <div class="col-md-4">
-            <div class="stat-card">
-                <h6 class="fw-bold mb-3 border-bottom pb-2">Preferência de Pagamento</h6>
-                <div style="height: 250px;"><canvas id="chartPagamento"></canvas></div>
-                <div class="mt-2 small text-muted text-center">*Conta Única agiliza o checkout em 40%.</div>
-            </div>
-        </div>
-
-        <!-- Motivos Cancelamento -->
-        <div class="col-md-4">
-            <div class="stat-card">
-                <h6 class="fw-bold mb-3 border-bottom pb-2 text-danger">Top Motivos Cancelamento</h6>
-                <?php if(empty($graficos['motivos_cancel'])): ?>
-                    <div class="text-center py-5 text-muted">Sem dados de cancelamento</div>
-                <?php else: ?>
-                    <div class="table-responsive" style="max-height:250px; overflow:auto;">
-                        <table class="table table-sm table-hover align-middle">
-                            <?php arsort($graficos['motivos_cancel']); foreach($graficos['motivos_cancel'] as $m => $q): ?>
-                            <tr><td><?= $m ?></td><td class="text-end fw-bold"><?= $q ?></td></tr>
+    <div class="row g-4">
+        <!-- 3. CRM DETALHADO DO CLIENTE -->
+        <div class="col-lg-8">
+            <div class="chart-container h-100">
+                <h6 class="fw-800 mb-4">Top Embaixadores & Comportamento</h6>
+                <div class="table-responsive">
+                    <table class="table table-crm table-hover align-middle">
+                        <thead>
+                            <tr>
+                                <th>Cliente</th>
+                                <th class="text-center">Frequência</th>
+                                <th class="text-center">Total Pax</th>
+                                <th>Última Visita</th>
+                                <th class="text-end">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach($topClientes as $tel => $c): 
+                                $status = $c['visitas'] > 3 ? ['VIP', 'bg-primary text-white'] : ['Recorrente', 'bg-light text-dark border'];
+                            ?>
+                            <tr>
+                                <td>
+                                    <div class="fw-bold"><?= htmlspecialchars($c['nome']) ?></div>
+                                    <div class="text-muted" style="font-size: 0.75rem;"><?= $tel ?></div>
+                                </td>
+                                <td class="text-center"><span class="fw-bold"><?= $c['visitas'] ?>x</span></td>
+                                <td class="text-center fw-bold text-primary"><?= $c['pax_total'] ?></td>
+                                <td><?= date('d/m/Y', strtotime($c['ultima'])) ?></td>
+                                <td class="text-end">
+                                    <span class="badge-status <?= $status[1] ?>"><?= $status[0] ?></span>
+                                </td>
+                            </tr>
                             <?php endforeach; ?>
-                        </table>
-                    </div>
-                <?php endif; ?>
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
 
-        <!-- Dias da Semana -->
-        <div class="col-md-4">
-            <div class="stat-card">
-                <h6 class="fw-bold mb-3 border-bottom pb-2">Fluxo Semanal (Pessoas)</h6>
-                <div style="height: 250px;"><canvas id="chartSemana"></canvas></div>
+        <!-- 4. DISTRIBUIÇÃO SEMANAL -->
+        <div class="col-lg-4">
+            <div class="chart-container h-100">
+                <h6 class="fw-800 mb-4">Volume por Dia da Semana</h6>
+                <div style="height: 300px;">
+                    <canvas id="weekChart"></canvas>
+                </div>
             </div>
         </div>
     </div>
-
 </div>
 
-<!-- SCRIPTS CHART.JS -->
 <script>
-    Chart.defaults.font.family = "'Segoe UI', sans-serif";
-    Chart.defaults.maintainAspectRatio = false;
-
-    // --- GRÁFICO TIMELINE (SCROLL) ---
-    const ctxTimeline = document.getElementById('chartTimeline');
-    new Chart(ctxTimeline, {
-        type: 'line',
+    // Gráfico de Palitos (Evolução Diária)
+    new Chart(document.getElementById('paxChart'), {
+        type: 'bar',
         data: {
             labels: <?= json_encode(array_keys($timelineData)) ?>,
-            datasets: [
-                {
-                    label: 'Reservas',
-                    data: <?= json_encode(array_column($timelineData, 'qtd')) ?>,
-                    borderColor: '#f59e0b',
-                    backgroundColor: 'rgba(245, 158, 11, 0.1)',
-                    yAxisID: 'y',
-                    tension: 0.3,
-                    fill: true
-                },
-                {
-                    label: 'Pessoas (Pax)',
-                    data: <?= json_encode(array_column($timelineData, 'pax')) ?>,
-                    borderColor: '#4361ee',
-                    backgroundColor: 'transparent',
-                    yAxisID: 'y1',
-                    borderDash: [5, 5],
-                    tension: 0.3
-                }
-            ]
+            datasets: [{
+                label: 'Total de Pessoas',
+                data: <?= json_encode(array_column($timelineData, 'pax')) ?>,
+                backgroundColor: '#4f46e5',
+                borderRadius: 4,
+                hoverBackgroundColor: '#4338ca'
+            }]
         },
         options: {
-            responsive: true,
-            interaction: { mode: 'index', intersect: false },
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
             scales: {
-                y: { type: 'linear', display: true, position: 'left', title: {display:true, text:'Qtd Reservas'} },
-                y1: { type: 'linear', display: true, position: 'right', grid: {drawOnChartArea: false}, title: {display:true, text:'Total Pessoas'} }
-            },
-            plugins: { legend: { position: 'top' } }
+                x: { grid: { display: false } },
+                y: { beginAtZero: true, grid: { borderDash: [2, 2] } }
+            }
         }
     });
 
-    // --- GRÁFICO PAGAMENTO ---
-    new Chart(document.getElementById('chartPagamento'), {
-        type: 'doughnut',
-        data: {
-            labels: <?= json_encode(array_keys($graficos['pagamento'])) ?>,
-            datasets: [{
-                data: <?= json_encode(array_values($graficos['pagamento'])) ?>,
-                backgroundColor: ['#4361ee', '#10b981', '#f59e0b', '#ef4444']
-            }]
-        },
-        options: { cutout: '65%', plugins: { legend: { position: 'bottom' } } }
-    });
-
-    // --- GRÁFICO SEMANA ---
-    new Chart(document.getElementById('chartSemana'), {
+    // Gráfico Semanal
+    new Chart(document.getElementById('weekChart'), {
         type: 'bar',
         data: {
             labels: <?= json_encode(array_keys($graficos['dias_semana'])) ?>,
             datasets: [{
-                label: 'Volume de Pessoas',
                 data: <?= json_encode(array_values($graficos['dias_semana'])) ?>,
-                backgroundColor: '#4361ee',
-                borderRadius: 4
+                backgroundColor: '#10b981',
+                borderRadius: 6
             }]
         },
         options: {
-            scales: { y: { beginAtZero: true } },
-            plugins: { legend: { display: false } }
+            indexAxis: 'y',
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+                x: { beginAtZero: true, grid: { display: false } },
+                y: { grid: { display: false } }
+            }
         }
     });
 </script>

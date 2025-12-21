@@ -2,172 +2,363 @@
 session_start();
 require 'config.php';
 
-// Verifica se o usuário está logado
 if (empty($_SESSION['mmnlogin'])) {
     header("Location: login.php");
     exit;
 }
 
-require 'cabecalho.php';
+// LÓGICA AJAX: Retorna apenas os dados se solicitado via JS
+if (isset($_GET['ajax'])) {
+    header('Content-Type: application/json');
+    $data = $_GET['data'] ?? date('Y-m-d');
+    $periodo = $_GET['periodo'] ?? 'todos';
 
-// Processa os filtros do formulário
-$data = $_POST['data'] ?? "";
-$hora_inicio = $_POST['hora_inicio'] ?? "";
-$hora_fim = $_POST['hora_fim'] ?? "";
+    $query = "SELECT * FROM clientes WHERE data = :data";
+    $params = [':data' => $data];
 
-$reservas = [];
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $query = "SELECT * FROM clientes WHERE 1=1";
-
-    if ($data) {
-        $query .= " AND data = '$data'";
-    }
-    if ($hora_inicio && $hora_fim) {
-        $query .= " AND horario BETWEEN '$hora_inicio' AND '$hora_fim'";
+    if ($periodo === 'almoco') {
+        $query .= " AND horario BETWEEN '11:00:00' AND '16:59:59'";
+    } elseif ($periodo === 'jantar') {
+        $query .= " AND horario BETWEEN '17:00:00' AND '23:59:59'";
     }
 
-    $sql = $pdo->query($query);
-    if ($sql->rowCount() > 0) {
-        $reservas = $sql->fetchAll();
-    }
+    $query .= " ORDER BY horario ASC";
+    $sql = $pdo->prepare($query);
+    $sql->execute($params);
+    echo json_encode($sql->fetchAll(PDO::FETCH_ASSOC));
+    exit;
 }
+
+require 'cabecalho.php';
 ?>
 
-<div style="width: 100%; margin: 20px auto; padding: 10px;">
-    <h3 style="text-align: center; font-size: 30px; margin-bottom: 20px;">Pesquisar Reservas</h3>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap" rel="stylesheet">
 
-    <form method="POST" style="display: flex; flex-wrap: wrap; justify-content: space-between; gap: 10px; margin-bottom: 20px;">
-        <div style="flex: 1 1 200px;">
-            <label style="font-size: 18px;">Data:</label>
-            <input type="date" name="data" style="width: 100%; padding: 5px; font-size: 18px;">
-        </div>
-        <div style="flex: 1 1 200px;">
-            <label style="font-size: 18px;">Horário Inicial:</label>
-            <input type="time" name="hora_inicio" style="width: 100%; padding: 5px; font-size: 18px;">
-        </div>
-        <div style="flex: 1 1 200px;">
-            <label style="font-size: 18px;">Horário Final:</label>
-            <input type="time" name="hora_fim" style="width: 100%; padding: 5px; font-size: 18px;">
-        </div>
-        <div style="flex: 1 1 100px; display: flex; align-items: flex-end;">
-            <button type="submit" style="padding: 8px 15px; background-color: #28a745; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 18px;">
-                Pesquisar
-            </button>
-        </div>
-    </form>
-
-    <!-- Botão para imprimir todas as reservas -->
-    <?php if (!empty($reservas)): ?>
-        <div style="text-align: center; margin-bottom: 20px;">
-            <button onclick="imprimirTodas()" style="padding: 10px 20px; background-color: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 18px;">
-                Imprimir Todas as Reservas
-            </button>
-        </div>
-    <?php endif; ?>
-
-    <div class="container-reservas">
-        <?php foreach ($reservas as $reserva): ?>
-            <div class="card-reserva">
-                <div style="text-align: center;">
-                    <img src="rossetto28.png" alt="Imagem da Reserva" style="width: 150px; height: 100px; border-radius: 8%;">
-                </div>
-                <h4 style="font-size: 26px; margin-bottom: 5px;">Reserva</h4>
-                <p style="font-size: 18px; margin: 2px;"><strong>Nome:</strong> <?= strtoupper(htmlspecialchars($reserva['nome'])) ?></p>
-                <p style="font-size: 18px; margin: 2px;"><strong>Data:</strong> <?= date('d/m/Y', strtotime($reserva['data'])) ?></p>
-                <p style="font-size: 18px; margin: 2px;"><strong>Horário:</strong> <?= date('H:i', strtotime($reserva['horario'])) ?></p>
-                <p style="font-size: 18px; margin: 2px;"><strong>Pessoas:</strong> <?= htmlspecialchars($reserva['num_pessoas']) ?></p>
-                <p style="font-size: 18px; margin: 2px;"><strong>Pagamento:</strong> <?= htmlspecialchars($reserva['forma_pagamento']) ?></p>
+<div class="page-wrapper">
+    <!-- BARRA DE PESQUISA COMPACTA (FIXA NO TOPO SE QUISER) -->
+    <div class="toolbar no-print">
+        <div class="search-container">
+            <div class="date-wrapper">
+                <span class="material-icons">calendar_today</span>
+                <input type="date" id="inputData" value="<?= date('Y-m-d') ?>" onchange="buscarReservas()">
             </div>
-        <?php endforeach; ?>
+
+            <div class="period-toggle">
+                <button class="btn-icon active" onclick="setPeriodo('todos', this)" title="Dia Inteiro">
+                    <span class="material-icons">filter_list</span>
+                </button>
+                <button class="btn-icon" onclick="setPeriodo('almoco', this)" title="Almoço">
+                    <span class="material-icons">light_mode</span>
+                </button>
+                <button class="btn-icon" onclick="setPeriodo('jantar', this)" title="Jantar">
+                    <span class="material-icons">dark_mode</span>
+                </button>
+            </div>
+
+            <button onclick="window.print()" class="btn-icon-print" title="Imprimir">
+                <span class="material-icons">print</span>
+            </button>
+        </div>
     </div>
+
+    <!-- CONTAINER ONDE OS CARDS APARECEM -->
+    <div id="reservas-container" class="container-reservas">
+        <!-- Injetado via AJAX -->
+    </div>
+
+    <!-- LOADING SPINNER -->
+    <div id="loader" class="loader" style="display:none;">Carregando...</div>
 </div>
 
 <script>
-    function imprimirTodas() {
-        const conteudoOriginal = document.body.innerHTML;
-        const conteudoImpressao = document.querySelector('.container-reservas').innerHTML;
-        
-        document.body.innerHTML = conteudoImpressao;
-        window.print();
-        document.body.innerHTML = conteudoOriginal;
+    let periodoAtual = 'todos';
+
+    function setPeriodo(p, btn) {
+        periodoAtual = p;
+        document.querySelectorAll('.btn-icon').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        buscarReservas();
     }
+
+    async function buscarReservas() {
+        const data = document.getElementById('inputData').value;
+        const container = document.getElementById('reservas-container');
+        const loader = document.getElementById('loader');
+
+        loader.style.display = 'block';
+        container.style.opacity = '0.5';
+
+        try {
+            const response = await fetch(`?ajax=1&data=${data}&periodo=${periodoAtual}`);
+            const reservas = await response.json();
+
+            container.innerHTML = '';
+
+            if (reservas.length === 0) {
+                container.innerHTML = '<div class="empty-msg">Nenhuma reserva encontrada.</div>';
+            } else {
+                reservas.forEach(res => {
+                    // Formatação de data e hora para exibição
+                    const hora = res.horario.substring(0, 5);
+                    const dataBr = data.split('-').reverse().join('/');
+
+                    container.innerHTML += `
+                        <div class="card-reserva">
+                            <div class="card-header-img">
+                                <img src="rossetto28.png" alt="Logo">
+                            </div>
+                            <div class="card-content">
+                                <h2 class="res-nome">${res.nome.toUpperCase()}</h2>
+                                <div class="res-destaque">
+                                    <span class="big-time">${hora}</span>
+                                    <span class="big-people">${res.num_pessoas} PESSOAS</span>
+                                </div>
+                                <div class="res-footer">
+                                    <span>${dataBr}</span>
+                                    <span>${res.forma_pagamento}</span>
+                                    ${res.num_mesa ? `<span>MESA: ${res.num_mesa}</span>` : ''}
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+            }
+        } catch (error) {
+            console.error("Erro ao buscar:", error);
+        } finally {
+            loader.style.display = 'none';
+            container.style.opacity = '1';
+        }
+    }
+
+    // Busca inicial ao carregar a página
+    window.onload = buscarReservas;
 </script>
 
 <style>
-    /* Container Responsivo */
-    .container-reservas {
-        display: flex;
-        flex-wrap: wrap;
-        justify-content: space-evenly;
-        gap: 15px;
-        padding: 10px;
+    /* RESET E BASE */
+    :root {
+        --ios-blue: #007AFF;
+        --card-bg: #ffffff;
+        --text-main: #000000;
     }
 
-    /* Estilização do Card */
-    .card-reserva {
-        border: 2px solid #333; /* Garantindo borda consistente */
+    body {
+        font-family: 'Inter', sans-serif;
+        background-color: #f2f2f7;
+        margin: 0;
+        padding-top: 20px;
+    }
+
+    .page-wrapper {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 15px;
+    }
+
+    /* TOOLBAR COMPACTA */
+    .toolbar {
+        background: white;
+        padding: 10px 20px;
+        border-radius: 50px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+        margin-bottom: 30px;
+        position: sticky;
+        top: 85px;
+        /* Ajuste conforme seu cabeçalho fixo */
+        z-index: 100;
+    }
+
+    .search-container {
         display: flex;
-        flex-direction: column;
+        align-items: center;
+        justify-content: space-between;
+        gap: 15px;
+    }
+
+    .date-wrapper {
+        display: flex;
+        align-items: center;
+        background: #f2f2f7;
+        padding: 5px 15px;
+        border-radius: 20px;
+        gap: 8px;
+    }
+
+    .date-wrapper input {
+        border: none;
+        background: transparent;
+        font-weight: 700;
+        font-family: 'Inter';
+        outline: none;
+    }
+
+    .period-toggle {
+        display: flex;
+        background: #f2f2f7;
+        padding: 3px;
+        border-radius: 30px;
+        gap: 5px;
+    }
+
+    .btn-icon {
+        border: none;
+        background: transparent;
+        width: 38px;
+        height: 38px;
+        border-radius: 50%;
+        display: flex;
         align-items: center;
         justify-content: center;
-        width: 9cm;
-        height: 12cm;
-        box-sizing: border-box;
+        cursor: pointer;
+        color: #8e8e93;
+        transition: 0.2s;
+    }
+
+    .btn-icon.active {
+        background: white;
+        color: var(--ios-blue);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    .btn-icon-print {
+        background: var(--ios-blue);
+        color: white;
+        border: none;
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        cursor: pointer;
+    }
+
+    /* GRID E CARDS GIGANTES */
+    .container-reservas {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+        gap: 20px;
+        transition: 0.3s;
+    }
+
+    .card-reserva {
+        background: white;
+        border: 2px solid #000;
+        border-radius: 12px;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        page-break-inside: avoid;
+    }
+
+    .card-header-img {
         padding: 10px;
         text-align: center;
-        font-family: Arial, sans-serif;
-        font-size: 16px;
-        border-radius: 8px;
+        background: #fff;
+        border-bottom: 1px dashed #ccc;
     }
 
-    .card-reserva img {
-        width: 150px;
-        height: 100px;
-        border-radius: 8%;
-        margin-bottom: 10px;
+    .card-header-img img {
+        width: 120px;
     }
 
-    /* Estilização para impressão */
-    <style>
-    /* ... (existing CSS styles) ... */
+    .card-content {
+        padding: 20px;
+        text-align: center;
+    }
 
+    .res-nome {
+        font-size: 28px;
+        /* LETRA MAIOR */
+        font-weight: 900;
+        margin: 0 0 15px 0;
+        line-height: 1.1;
+    }
+
+    .res-destaque {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+        margin-bottom: 20px;
+    }
+
+    .big-time {
+        font-size: 45px;
+        /* HORA GIGANTE */
+        font-weight: 900;
+        color: var(--ios-blue);
+        display: block;
+    }
+
+    .big-people {
+        font-size: 20px;
+        font-weight: 700;
+        color: #333;
+    }
+
+    .res-footer {
+        display: flex;
+        justify-content: center;
+        gap: 15px;
+        font-weight: 700;
+        font-size: 14px;
+        color: #666;
+        border-top: 1px solid #eee;
+        padding-top: 15px;
+    }
+
+    .empty-msg {
+        grid-column: 1 / -1;
+        text-align: center;
+        padding: 50px;
+        font-size: 18px;
+        color: #8e8e93;
+    }
+
+    .loader {
+        text-align: center;
+        padding: 20px;
+        font-weight: bold;
+        color: var(--ios-blue);
+    }
+
+    /* IMPRESSÃO */
     @media print {
+        .no-print {
+            display: none !important;
+        }
+
         body {
-            font-family: Arial, sans-serif;
-            font-size: 12pt;
-            margin: 0;
+            background: white;
+            padding: 0;
+        }
+
+        .page-wrapper {
+            max-width: 100%;
+            padding: 0;
         }
 
         .container-reservas {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 20px;
-            padding: 20px;
+            grid-template-columns: 1fr 1fr;
+            /* 2 cards por folha */
+            gap: 5px;
         }
 
         .card-reserva {
-            border: 2px solid black;
-            padding: 10px;
-            margin: 0;
-            box-sizing: border-box;
-            page-break-inside: avoid;
-        }
-
-        .card-reserva img {
-            width: 100px;
-            height: 80px;
-            margin-bottom: 10px;
-        }
-
-        h4 {
-            font-size: 16px;
-            margin-bottom: 5px;
-        }
-
-        p {
-            font-size: 12px;
-            margin: 2px 0;
+            border: 2px solid #000;
         }
     }
-</style>
+
+    @media (max-width: 600px) {
+        .toolbar {
+            border-radius: 15px;
+        }
+
+        .search-container {
+            flex-direction: column;
+        }
+
+        .container-reservas {
+            grid-template-columns: 1fr;
+        }
+    }
 </style>
