@@ -1,13 +1,9 @@
 <?php
 try {
-    $pdo = new PDO(
-        "mysql:dbname=reservaPHP;host=localhost;charset=utf8",
-        "root",
-        "",
-        array(PDO::MYSQL_ATTR_INIT_COMMAND => "SET NAMES utf8")
-    );
-} catch (PDOException $e) {
-    echo "ERRO: " . $e->getMessage();
+    $pdo = new PDO("mysql:dbname=reservaPhpMulti;host=localhost", "root", "");
+    $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+} catch(PDOException $e) {
+    echo "FALHA: ".$e->getMessage();
     exit;
 }
 ?>

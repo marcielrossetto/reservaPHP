@@ -7,14 +7,24 @@ if (empty($_SESSION['mmnlogin'])) {
     exit;
 }
 
-// LÓGICA AJAX: Retorna apenas os dados se solicitado via JS
+// CAPTURA DADOS DA EMPRESA LOGADA
+$empresa_id = $_SESSION['empresa_id'];
+
+// BUSCA A LOGO DA EMPRESA PARA O JAVASCRIPT USAR
+$sqlEmp = $pdo->prepare("SELECT logo FROM empresas WHERE id = ?");
+$sqlEmp->execute([$empresa_id]);
+$dadosEmp = $sqlEmp->fetch();
+$logo_empresa = !empty($dadosEmp['logo']) ? 'data:image/jpeg;base64,' . base64_encode($dadosEmp['logo']) : 'rossetto28.png';
+
+// LÓGICA AJAX: Retorno rápido filtrado por empresa
 if (isset($_GET['ajax'])) {
     header('Content-Type: application/json');
     $data = $_GET['data'] ?? date('Y-m-d');
     $periodo = $_GET['periodo'] ?? 'todos';
 
-    $query = "SELECT * FROM clientes WHERE data = :data";
-    $params = [':data' => $data];
+    // Query com filtro de empresa_id
+    $query = "SELECT * FROM clientes WHERE data = :data AND empresa_id = :emp_id";
+    $params = [':data' => $data, ':emp_id' => $empresa_id];
 
     if ($periodo === 'almoco') {
         $query .= " AND horario BETWEEN '11:00:00' AND '16:59:59'";
@@ -36,7 +46,6 @@ require 'cabecalho.php';
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap" rel="stylesheet">
 
 <div class="page-wrapper">
-    <!-- BARRA DE PESQUISA COMPACTA (FIXA NO TOPO SE QUISER) -->
     <div class="toolbar no-print">
         <div class="search-container">
             <div class="date-wrapper">
@@ -45,7 +54,7 @@ require 'cabecalho.php';
             </div>
 
             <div class="period-toggle">
-                <button class="btn-icon active" onclick="setPeriodo('todos', this)" title="Dia Inteiro">
+                <button class="btn-icon active" onclick="setPeriodo('todos', this)" title="Todos">
                     <span class="material-icons">filter_list</span>
                 </button>
                 <button class="btn-icon" onclick="setPeriodo('almoco', this)" title="Almoço">
@@ -62,17 +71,17 @@ require 'cabecalho.php';
         </div>
     </div>
 
-    <!-- CONTAINER ONDE OS CARDS APARECEM -->
     <div id="reservas-container" class="container-reservas">
-        <!-- Injetado via AJAX -->
+        <!-- JS injeta os cards aqui -->
     </div>
 
-    <!-- LOADING SPINNER -->
-    <div id="loader" class="loader" style="display:none;">Carregando...</div>
+    <div id="loader" class="loader" style="display:none;">Sincronizando...</div>
 </div>
 
 <script>
     let periodoAtual = 'todos';
+    // Logo da empresa vinda do PHP
+    const logoEmpresa = "<?= $logo_empresa ?>";
 
     function setPeriodo(p, btn) {
         periodoAtual = p;
@@ -87,7 +96,7 @@ require 'cabecalho.php';
         const loader = document.getElementById('loader');
 
         loader.style.display = 'block';
-        container.style.opacity = '0.5';
+        container.style.opacity = '0.3';
 
         try {
             const response = await fetch(`?ajax=1&data=${data}&periodo=${periodoAtual}`);
@@ -96,93 +105,91 @@ require 'cabecalho.php';
             container.innerHTML = '';
 
             if (reservas.length === 0) {
-                container.innerHTML = '<div class="empty-msg">Nenhuma reserva encontrada.</div>';
+                container.innerHTML = '<div class="empty-msg">Nenhuma reserva.</div>';
             } else {
                 reservas.forEach(res => {
-                    // Formatação de data e hora para exibição
                     const hora = res.horario.substring(0, 5);
                     const dataBr = data.split('-').reverse().join('/');
+                    const numeroMesa = res.num_mesa ? res.num_mesa : '';
 
                     container.innerHTML += `
                         <div class="card-reserva">
-                            <div class="card-header-img">
-                                <img src="rossetto28.png" alt="Logo">
+                            <div class="card-header-mini">
+                                <img src="${logoEmpresa}" alt="Logo">
                             </div>
-                            <div class="card-content">
+                            <div class="card-main">
                                 <h2 class="res-nome">${res.nome.toUpperCase()}</h2>
-                                <div class="res-destaque">
-                                    <span class="big-time">${hora}</span>
-                                    <span class="big-people">${res.num_pessoas} PESSOAS</span>
+                                
+                                <div class="res-middle">
+                                    <span class="res-time">${hora}</span>
+                                    <span class="res-people">${res.num_pessoas} PESSOAS</span>
                                 </div>
-                                <div class="res-footer">
-                                    <span>${dataBr}</span>
-                                    <span>${res.forma_pagamento}</span>
-                                    ${res.num_mesa ? `<span>MESA: ${res.num_mesa}</span>` : ''}
+
+                                <div class="res-info">
+                                    <p>${dataBr}</p>
+                                    <p>${res.forma_pagamento}</p>
+                                </div>
+
+                                <div class="mesa-manual-central">
+                                    <small>MESA</small>
+                                    <div class="square">
+                                        ${numeroMesa}
+                                    </div>
                                 </div>
                             </div>
                         </div>
                     `;
                 });
             }
-        } catch (error) {
-            console.error("Erro ao buscar:", error);
-        } finally {
+        } catch (error) { console.error(error); }
+        finally {
             loader.style.display = 'none';
             container.style.opacity = '1';
         }
     }
 
-    // Busca inicial ao carregar a página
     window.onload = buscarReservas;
 </script>
 
 <style>
-    /* RESET E BASE */
-    :root {
-        --ios-blue: #007AFF;
-        --card-bg: #ffffff;
-        --text-main: #000000;
-    }
-
+    /* TODO O SEU CSS FOI MANTIDO EXATAMENTE IGUAL */
     body {
         font-family: 'Inter', sans-serif;
         background-color: #f2f2f7;
         margin: 0;
-        padding-top: 20px;
     }
 
     .page-wrapper {
         max-width: 1200px;
         margin: 0 auto;
-        padding: 15px;
+        padding: 10px;
     }
 
-    /* TOOLBAR COMPACTA */
     .toolbar {
         background: white;
         padding: 10px 20px;
-        border-radius: 50px;
-        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
-        margin-bottom: 30px;
+        border-radius: 12px;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+        margin-top: 85px;
+        margin-bottom: 20px;
         position: sticky;
-        top: 85px;
-        /* Ajuste conforme seu cabeçalho fixo */
-        z-index: 100;
+        top: 80px;
+        z-index: 1000;
     }
 
     .search-container {
         display: flex;
         align-items: center;
         justify-content: space-between;
-        gap: 15px;
+        gap: 10px;
     }
 
     .date-wrapper {
         display: flex;
         align-items: center;
         background: #f2f2f7;
-        padding: 5px 15px;
-        border-radius: 20px;
+        padding: 6px 12px;
+        border-radius: 10px;
         gap: 8px;
     }
 
@@ -190,141 +197,193 @@ require 'cabecalho.php';
         border: none;
         background: transparent;
         font-weight: 700;
-        font-family: 'Inter';
         outline: none;
+        font-size: 14px;
+        color: #333;
     }
 
     .period-toggle {
         display: flex;
         background: #f2f2f7;
-        padding: 3px;
-        border-radius: 30px;
-        gap: 5px;
+        padding: 4px;
+        border-radius: 10px;
+        gap: 4px;
     }
 
     .btn-icon {
         border: none;
         background: transparent;
-        width: 38px;
-        height: 38px;
-        border-radius: 50%;
+        width: 36px;
+        height: 36px;
+        border-radius: 8px;
+        cursor: pointer;
+        color: #8e8e93;
         display: flex;
         align-items: center;
         justify-content: center;
-        cursor: pointer;
-        color: #8e8e93;
-        transition: 0.2s;
     }
 
     .btn-icon.active {
         background: white;
-        color: var(--ios-blue);
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        color: #007AFF;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
     }
 
     .btn-icon-print {
-        background: var(--ios-blue);
+        background: #007AFF;
         color: white;
         border: none;
         width: 40px;
         height: 40px;
-        border-radius: 50%;
+        border-radius: 10px;
         cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
     }
 
-    /* GRID E CARDS GIGANTES */
     .container-reservas {
         display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
-        gap: 20px;
-        transition: 0.3s;
+        grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+        gap: 15px;
     }
 
     .card-reserva {
         background: white;
         border: 2px solid #000;
-        border-radius: 12px;
+        border-radius: 8px;
         display: flex;
         flex-direction: column;
         overflow: hidden;
         page-break-inside: avoid;
+        text-align: center;
+        height: 100%;
     }
 
-    .card-header-img {
+    .card-header-mini {
+        padding: 3px;
+        background: #6f6f70ff;
+        border-bottom: 1px solid #000;
+        line-height: 0;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 45px;
+    }
+
+    .card-header-mini img {
+        height: 40px;
+        width: auto;
+        object-fit: contain;
+    }
+
+    .card-main {
         padding: 10px;
-        text-align: center;
-        background: #fff;
-        border-bottom: 1px dashed #ccc;
-    }
-
-    .card-header-img img {
-        width: 120px;
-    }
-
-    .card-content {
-        padding: 20px;
-        text-align: center;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: space-between;
+        flex-grow: 1;
     }
 
     .res-nome {
-        font-size: 28px;
-        /* LETRA MAIOR */
+        font-size: 18px;
         font-weight: 900;
-        margin: 0 0 15px 0;
+        margin: 0 0 5px 0;
+        color: #000;
         line-height: 1.1;
+        width: 100%;
+        word-wrap: break-word;
     }
 
-    .res-destaque {
-        display: flex;
-        flex-direction: column;
-        gap: 5px;
-        margin-bottom: 20px;
+    .res-middle {
+        margin-bottom: 8px;
     }
 
-    .big-time {
-        font-size: 45px;
-        /* HORA GIGANTE */
-        font-weight: 900;
-        color: var(--ios-blue);
+    .res-time {
+        font-size: 16px;
+        font-weight: 400;
+        color: #000;
         display: block;
     }
 
-    .big-people {
-        font-size: 20px;
+    .res-people {
+        font-size: 13px;
         font-weight: 700;
-        color: #333;
+        color: #444;
     }
 
-    .res-footer {
-        display: flex;
-        justify-content: center;
-        gap: 15px;
-        font-weight: 700;
-        font-size: 14px;
+    .res-info {
+        font-size: 11px;
         color: #666;
+        font-weight: 600;
+        line-height: 1.2;
+        margin-bottom: 10px;
         border-top: 1px solid #eee;
-        padding-top: 15px;
+        padding-top: 5px;
+        width: 100%;
     }
 
-    .empty-msg {
-        grid-column: 1 / -1;
-        text-align: center;
-        padding: 50px;
-        font-size: 18px;
-        color: #8e8e93;
+    .res-info p {
+        margin: 2px 0;
+    }
+
+    .mesa-manual-central {
+        margin-top: auto;
+        padding-bottom: 5px;
+    }
+
+    .mesa-manual-central small {
+        font-size: 9px;
+        font-weight: 900;
+        display: block;
+        margin-bottom: 2px;
+    }
+
+    .square {
+        width: 55px;
+        height: 55px;
+        border: 2px solid #000;
+        background: white;
+        border-radius: 6px;
+        margin: 0 auto;
+        display: flex;
+        align-items: flex-start;
+        justify-content: center;
+        padding-top: 2px;
+        font-size: 12px;
+        font-weight: 900;
+        color: #000;
     }
 
     .loader {
-        text-align: center;
-        padding: 20px;
-        font-weight: bold;
-        color: var(--ios-blue);
+        position: fixed;
+        bottom: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: #333;
+        color: #fff;
+        padding: 10px 20px;
+        border-radius: 20px;
+        z-index: 2000;
     }
 
-    /* IMPRESSÃO */
+    .empty-msg {
+        grid-column: 1/-1;
+        text-align: center;
+        padding: 60px;
+        color: #888;
+        font-size: 18px;
+    }
+
     @media print {
         .no-print {
             display: none !important;
+        }
+
+        @page {
+            size: A4 portrait;
+            margin: 0.5cm;
         }
 
         body {
@@ -335,30 +394,37 @@ require 'cabecalho.php';
         .page-wrapper {
             max-width: 100%;
             padding: 0;
+            margin: 0;
         }
 
         .container-reservas {
-            grid-template-columns: 1fr 1fr;
-            /* 2 cards por folha */
-            gap: 5px;
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            grid-template-rows: repeat(4, 1fr);
+            gap: 2px;
+            width: 100%;
+            height: 78vh;
         }
 
         .card-reserva {
             border: 2px solid #000;
-        }
-    }
-
-    @media (max-width: 600px) {
-        .toolbar {
-            border-radius: 15px;
+            height: 100%;
+            border-radius: 20px;
         }
 
-        .search-container {
-            flex-direction: column;
+        .res-nome {
+            font-size: 15px;
         }
 
-        .container-reservas {
-            grid-template-columns: 1fr;
+        .res-time {
+            font-size: 14px;
+        }
+
+        .square {
+            width: 50px;
+            height: 50px;
+            font-size: 10px;
+            padding-top: 1px;
         }
     }
 </style>

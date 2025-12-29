@@ -1,232 +1,165 @@
 <?php
 session_start();
 require 'config.php';
-require 'cabecalho.php';
 
 if (empty($_SESSION['mmnlogin'])) {
     header("Location: login.php");
     exit;
 }
 
-/* ==========================================================
-   1. FILTROS E PREPARAÇÃO
-========================================================== */
-$dateStart = $_GET['inicio'] ?? date('Y-m-01');
-$dateEnd   = $_GET['fim'] ?? date('Y-m-t');
+$empresa_id = $_SESSION['empresa_id'];
+$data_inicio = $_GET['data_inicio'] ?? date('Y-m-01');
+$data_fim = $_GET['data_fim'] ?? date('Y-m-t');
 
-$periodo = new DatePeriod(
-    new DateTime($dateStart),
-    new DateInterval('P1D'),
-    (new DateTime($dateEnd))->modify('+1 day')
-);
-$timelineData = [];
-foreach ($periodo as $dt) {
-    $timelineData[$dt->format("Y-m-d")] = ['pax' => 0];
-}
-
-/* ==========================================================
-   2. CONSULTA AO BANCO
-========================================================== */
-$stmt = $pdo->prepare("
-    SELECT nome, data, num_pessoas, telefone, status, forma_pagamento
-    FROM clientes
-    WHERE data BETWEEN :inicio AND :fim
-    ORDER BY data ASC
+/* ============================================================
+   1. KPIs GERAIS
+============================================================ */
+$sqlKpi = $pdo->prepare("
+    SELECT 
+        COUNT(*) as total_res,
+        SUM(CASE WHEN status != 0 THEN num_pessoas ELSE 0 END) as pax_ativo,
+        COUNT(CASE WHEN status = 0 THEN 1 END) as qtd_cancel,
+        SUM(CASE WHEN status = 0 THEN num_pessoas ELSE 0 END) as pax_cancel,
+        AVG(DATEDIFF(data, data_emissao)) as lead_time
+    FROM clientes 
+    WHERE empresa_id = :emp AND data BETWEEN :ini AND :fim
 ");
-$stmt->execute(['inicio' => $dateStart, 'fim' => $dateEnd]);
-$dados = $stmt->fetchAll(PDO::FETCH_ASSOC);
+$sqlKpi->execute(['emp' => $empresa_id, 'ini' => $data_inicio, 'fim' => $data_fim]);
+$kpis = $sqlKpi->fetch();
 
-/* ==========================================================
-   3. PROCESSAMENTO (BI + CRM)
-========================================================== */
-$kpis = ['res' => 0, 'pax' => 0, 'canc' => 0];
-$grupos = [
-    'pequeno' => ['res' => 0, 'pax' => 0], // 1-4
-    'medio'   => ['res' => 0, 'pax' => 0], // 5-10
-    'grande'  => ['res' => 0, 'pax' => 0], // 11-20
-    'evento'  => ['res' => 0, 'pax' => 0], // 21+
-];
-$graficos = [
-    'pagamento' => [],
-    'dias_semana' => array_fill_keys(['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'], 0)
-];
-$clientes = [];
+/* ============================================================
+   2. FILA DE ESPERA (SENTADOS)
+============================================================ */
+$sqlFila = $pdo->prepare("
+    SELECT 
+        COUNT(CASE WHEN status = 1 THEN 1 END) as total_sentados,
+        SUM(CASE WHEN status = 1 THEN num_pessoas ELSE 0 END) as pax_sentados
+    FROM fila_espera 
+    WHERE empresa_id = :emp AND DATE(data_criacao) BETWEEN :ini AND :fim
+");
+$sqlFila->execute(['emp' => $empresa_id, 'ini' => $data_inicio, 'fim' => $data_fim]);
+$fila = $sqlFila->fetch();
 
-foreach ($dados as $row) {
-    $pax = (int)$row['num_pessoas'];
-    $kpis['res']++;
-    $kpis['pax'] += $pax;
+/* ============================================================
+   3. LÓGICA DO GRÁFICO (PREENCHIMENTO DE DATAS)
+============================================================ */
+$sqlEvo = $pdo->prepare("
+    SELECT 
+        c.data, 
+        SUM(c.num_pessoas) as res_pax,
+        (SELECT SUM(f.num_pessoas) FROM fila_espera f WHERE f.empresa_id = c.empresa_id AND DATE(f.data_criacao) = c.data AND f.status = 1) as fila_pax
+    FROM clientes c
+    WHERE c.empresa_id = :emp AND c.status != 0 AND c.data BETWEEN :ini AND :fim
+    GROUP BY c.data
+");
+$sqlEvo->execute(['emp' => $empresa_id, 'ini' => $data_inicio, 'fim' => $data_fim]);
+$dados_banco = $sqlEvo->fetchAll(PDO::FETCH_UNIQUE | PDO::FETCH_ASSOC);
 
-    if ($row['status'] == 0) {
-        $kpis['canc']++;
-    } else {
-        // Timeline (Gráfico de Palitos)
-        if (isset($timelineData[$row['data']])) {
-            $timelineData[$row['data']]['pax'] += $pax;
-        }
+$labels = [];
+$dataset_res = [];
+$dataset_fila = [];
+$periodo = new DatePeriod(new DateTime($data_inicio), new DateInterval('P1D'), (new DateTime($data_fim))->modify('+1 day'));
 
-        // Unificação dos Grupos nos Cards
-        if ($pax <= 4) { $grupos['pequeno']['res']++; $grupos['pequeno']['pax'] += $pax; }
-        elseif ($pax <= 10) { $grupos['medio']['res']++; $grupos['medio']['pax'] += $pax; }
-        elseif ($pax <= 20) { $grupos['grande']['res']++; $grupos['grande']['pax'] += $pax; }
-        else { $grupos['evento']['res']++; $grupos['evento']['pax'] += $pax; }
-
-        $pag = $row['forma_pagamento'] ?: 'Outros';
-        $graficos['pagamento'][$pag] = ($graficos['pagamento'][$pag] ?? 0) + 1;
-
-        $d = date('D', strtotime($row['data']));
-        $diaMap = ["Sun"=>"Dom","Mon"=>"Seg","Tue"=>"Ter","Wed"=>"Qua","Thu"=>"Qui","Fri"=>"Sex","Sat"=>"Sáb"];
-        $graficos['dias_semana'][$diaMap[$d]] += $pax;
-    }
-
-    // CRM Detalhado
-    $tel = preg_replace('/\D/', '', $row['telefone']);
-    if(!empty($tel)) {
-        if(!isset($clientes[$tel])) {
-            $clientes[$tel] = ['nome' => $row['nome'], 'visitas' => 0, 'pax_total' => 0, 'ultima' => $row['data']];
-        }
-        $clientes[$tel]['visitas']++;
-        $clientes[$tel]['pax_total'] += $pax;
-        if($row['data'] > $clientes[$tel]['ultima']) $clientes[$tel]['ultima'] = $row['data'];
-    }
+foreach ($periodo as $d) {
+    $dateStr = $d->format('Y-m-d');
+    $labels[] = $d->format('d/m');
+    $dataset_res[] = (int) ($dados_banco[$dateStr]['res_pax'] ?? 0);
+    $dataset_fila[] = (int) ($dados_banco[$dateStr]['fila_pax'] ?? 0);
 }
 
-uasort($clientes, function($a, $b) { return $b['visitas'] <=> $a['visitas']; });
-$topClientes = array_slice($clientes, 0, 6);
+/* ============================================================
+   4. RANKINGS E FAIXAS
+============================================================ */
+$sqlTop = $pdo->prepare("SELECT nome, telefone, COUNT(*) as visitas, SUM(num_pessoas) as pax FROM clientes WHERE empresa_id = :emp AND status != 0 GROUP BY telefone ORDER BY visitas DESC LIMIT 10");
+$sqlTop->execute(['emp' => $empresa_id]);
+$topClientes = $sqlTop->fetchAll();
 
-$larguraCanvas = count($timelineData) > 31 ? (count($timelineData) * 40) . 'px' : '100%';
+$sqlUser = $pdo->prepare("SELECT l.nome, COUNT(c.id) as qtd FROM login l LEFT JOIN clientes c ON l.id = c.usuario_id AND c.data BETWEEN :ini AND :fim WHERE l.empresa_id = :emp AND l.status = 1 GROUP BY l.id ORDER BY qtd DESC");
+$sqlUser->execute(['emp' => $empresa_id, 'ini' => $data_inicio, 'fim' => $data_fim]);
+$equipe = $sqlUser->fetchAll();
+
+$sqlFaixas = $pdo->prepare("SELECT SUM(CASE WHEN num_pessoas BETWEEN 5 AND 6 THEN 1 ELSE 0 END) as f5_6, SUM(CASE WHEN num_pessoas BETWEEN 7 AND 8 THEN 1 ELSE 0 END) as f7_8, SUM(CASE WHEN num_pessoas BETWEEN 10 AND 15 THEN 1 ELSE 0 END) as f10_15, SUM(CASE WHEN num_pessoas BETWEEN 15 AND 20 THEN 1 ELSE 0 END) as f15_20, SUM(CASE WHEN num_pessoas > 20 THEN 1 ELSE 0 END) as f20_mais FROM clientes WHERE empresa_id = :emp AND status != 0 AND data BETWEEN :ini AND :fim");
+$sqlFaixas->execute(['emp' => $empresa_id, 'ini' => $data_inicio, 'fim' => $data_fim]);
+$faixas = $sqlFaixas->fetch();
+
+require 'cabecalho.php';
 ?>
 
-<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-    <meta charset="UTF-8">
-    <title>Business Intelligence | ReservaPro</title>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<div class="container-fluid py-4" style="background: #f4f7fa;">
 
-    <style>
-        :root { --primary: #4f46e5; --slate-100: #f1f5f9; --slate-800: #1e293b; }
-        body { background-color: #f8fafc; font-family: 'Plus Jakarta Sans', sans-serif; color: var(--slate-800); }
-        
-        /* Estilo dos Cards Unificados */
-        .card-combined {
-            background: white; border-radius: 16px; padding: 20px;
-            border: 1px solid var(--slate-100); box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
-            transition: 0.3s; height: 100%;
-        }
-        .card-combined:hover { transform: translateY(-3px); box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); }
-        .card-label { font-size: 0.75rem; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.025em; }
-        .val-main { font-size: 1.75rem; font-weight: 800; display: block; line-height: 1.2; }
-        .val-sub { font-size: 0.875rem; color: #64748b; display: flex; align-items: center; gap: 5px; margin-top: 5px; }
-
-        .chart-container { background: white; border-radius: 20px; padding: 25px; border: 1px solid var(--slate-100); }
-        .table-crm { font-size: 0.85rem; }
-        .table-crm th { font-size: 0.7rem; text-transform: uppercase; color: #94a3b8; border: none; }
-        .badge-status { padding: 5px 10px; border-radius: 6px; font-weight: 700; font-size: 0.7rem; }
-        
-        .border-pequeno { border-top: 4px solid #6366f1; }
-        .border-medio { border-top: 4px solid #10b981; }
-        .border-grande { border-top: 4px solid #f59e0b; }
-        .border-evento { border-top: 4px solid #ec4899; }
-        
-        .filter-bar { background: white; padding: 15px 25px; border-radius: 100px; border: 1px solid var(--slate-100); margin-bottom: 30px; }
-    </style>
-</head>
-<body>
-
-<div class="container-fluid px-4 py-4">
-    
-    <!-- HEADER & FILTROS -->
-    <div class="d-flex flex-column flex-md-row justify-content-between align-items-center mb-4">
-        <div>
-            <h1 class="h3 fw-800 mb-1">Dashboard Estratégico</h1>
-            <p class="text-muted small">Análise de fluxo diário e comportamento do cliente.</p>
+    <!-- FILTROS -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <h4 class="fw-bold"><i class="fas fa-chart-pie text-primary me-2"></i>Dashboard de Performance</h4>
         </div>
-        <form class="filter-bar d-flex gap-3 align-items-center">
-            <input type="date" name="inicio" class="form-control form-control-sm border-0" value="<?= $dateStart ?>">
-            <span class="text-muted">até</span>
-            <input type="date" name="fim" class="form-control form-control-sm border-0" value="<?= $dateEnd ?>">
-            <button class="btn btn-primary btn-sm px-4 rounded-pill fw-bold">Atualizar</button>
-        </form>
+        <div class="col-md-6 text-end">
+            <form class="d-flex justify-content-end gap-2">
+                <input type="date" name="data_inicio" class="form-control w-auto shadow-sm" value="<?= $data_inicio ?>">
+                <input type="date" name="data_fim" class="form-control w-auto shadow-sm" value="<?= $data_fim ?>">
+                <button class="btn btn-primary shadow-sm px-4">Atualizar Dados</button>
+            </form>
+        </div>
     </div>
 
-    <!-- 1. CARDS UNIFICADOS (RESERVAS + PESSOAS) -->
+    <!-- 1. KPIs (TOPO) -->
     <div class="row g-3 mb-4">
         <div class="col-md-3">
-            <div class="card-combined border-pequeno">
-                <span class="card-label">Grupos Pequenos (1-4)</span>
-                <span class="val-main"><?= $grupos['pequeno']['res'] ?> <small class="fs-6 fw-normal text-muted">res.</small></span>
-                <span class="val-sub"><i class="bi bi-people-fill text-primary"></i> <?= $grupos['pequeno']['pax'] ?> pessoas totais</span>
+            <div class="card border-0 shadow-sm p-3 border-start border-primary border-5">
+                <small class="text-muted fw-bold">PÚBLICO RESERVADO</small>
+                <h2 class="fw-900 m-0"><?= $kpis['pax_ativo'] ?? 0 ?></h2>
+                <span class="badge bg-light text-primary border mt-1 w-fit"><?= $kpis['total_res'] ?>
+                    Agendamentos</span>
             </div>
         </div>
         <div class="col-md-3">
-            <div class="card-combined border-medio">
-                <span class="card-label">Grupos Médios (5-10)</span>
-                <span class="val-main"><?= $grupos['medio']['res'] ?> <small class="fs-6 fw-normal text-muted">res.</small></span>
-                <span class="val-sub"><i class="bi bi-people-fill text-success"></i> <?= $grupos['medio']['pax'] ?> pessoas totais</span>
+            <div class="card border-0 shadow-sm p-3 border-start border-danger border-5">
+                <small class="text-muted fw-bold">CANCELAMENTOS</small>
+                <h2 class="fw-900 m-0 text-danger"><?= $kpis['qtd_cancel'] ?? 0 ?></h2>
+                <small class="text-danger">Perda de <?= $kpis['pax_cancel'] ?? 0 ?> pessoas</small>
             </div>
         </div>
         <div class="col-md-3">
-            <div class="card-combined border-grande">
-                <span class="card-label">Grupos Grandes (11-20)</span>
-                <span class="val-main"><?= $grupos['grande']['res'] ?> <small class="fs-6 fw-normal text-muted">res.</small></span>
-                <span class="val-sub"><i class="bi bi-people-fill text-warning"></i> <?= $grupos['grande']['pax'] ?> pessoas totais</span>
+            <div class="card border-0 shadow-sm p-3 border-start border-success border-5">
+                <small class="text-muted fw-bold">FILA (SENTADOS)</small>
+                <h2 class="fw-900 m-0 text-success"><?= $fila['total_sentados'] ?? 0 ?></h2>
+                <small class="text-muted"><?= $fila['pax_sentados'] ?? 0 ?> Pax convertidos</small>
             </div>
         </div>
         <div class="col-md-3">
-            <div class="card-combined border-evento">
-                <span class="card-label">Eventos (21+)</span>
-                <span class="val-main"><?= $grupos['evento']['res'] ?> <small class="fs-6 fw-normal text-muted">res.</small></span>
-                <span class="val-sub"><i class="bi bi-people-fill text-danger"></i> <?= $grupos['evento']['pax'] ?> pessoas totais</span>
+            <div class="card border-0 shadow-sm p-3 border-start border-warning border-5">
+                <small class="text-muted fw-bold">ANTECEDÊNCIA MÉDIA</small>
+                <h2 class="fw-900 m-0 text-warning"><?= round($kpis['lead_time'], 1) ?> Dias</h2>
+                <small class="text-muted">Lead time de reservas</small>
             </div>
         </div>
     </div>
 
-    <!-- 2. GRÁFICO DE PALITOS (EVOLUÇÃO DIÁRIA PAX) -->
-    <div class="chart-container mb-4">
-        <h6 class="fw-800 mb-4">Evolução Diária de Pessoas (Pax)</h6>
-        <div class="overflow-x-auto">
-            <div style="height: 300px; width: <?= $larguraCanvas ?>;">
-                <canvas id="paxChart"></canvas>
-            </div>
-        </div>
-    </div>
-
-    <div class="row g-4">
-        <!-- 3. CRM DETALHADO DO CLIENTE -->
-        <div class="col-lg-8">
-            <div class="chart-container h-100">
-                <h6 class="fw-800 mb-4">Top Embaixadores & Comportamento</h6>
+    <!-- 2. RANKINGS (MEIO) -->
+    <div class="row g-4 mb-4">
+        <!-- RANKING CLIENTES -->
+        <div class="col-md-7">
+            <div class="card border-0 shadow-sm p-4 h-100">
+                <h6 class="fw-bold mb-3 text-dark border-bottom pb-2"><i class="fas fa-award text-warning me-2"></i>Top
+                    10 Clientes Fiéis (Histórico)</h6>
                 <div class="table-responsive">
-                    <table class="table table-crm table-hover align-middle">
-                        <thead>
+                    <table class="table table-hover align-middle">
+                        <thead class="bg-light">
                             <tr>
-                                <th>Cliente</th>
-                                <th class="text-center">Frequência</th>
-                                <th class="text-center">Total Pax</th>
-                                <th>Última Visita</th>
-                                <th class="text-end">Status</th>
+                                <th class="small">NOME DO CLIENTE</th>
+                                <th class="text-center small">VISITAS</th>
+                                <th class="text-center small">TOTAL PAX</th>
                             </tr>
                         </thead>
                         <tbody>
-                            <?php foreach($topClientes as $tel => $c): 
-                                $status = $c['visitas'] > 3 ? ['VIP', 'bg-primary text-white'] : ['Recorrente', 'bg-light text-dark border'];
-                            ?>
-                            <tr>
-                                <td>
-                                    <div class="fw-bold"><?= htmlspecialchars($c['nome']) ?></div>
-                                    <div class="text-muted" style="font-size: 0.75rem;"><?= $tel ?></div>
-                                </td>
-                                <td class="text-center"><span class="fw-bold"><?= $c['visitas'] ?>x</span></td>
-                                <td class="text-center fw-bold text-primary"><?= $c['pax_total'] ?></td>
-                                <td><?= date('d/m/Y', strtotime($c['ultima'])) ?></td>
-                                <td class="text-end">
-                                    <span class="badge-status <?= $status[1] ?>"><?= $status[0] ?></span>
-                                </td>
-                            </tr>
+                            <?php foreach ($topClientes as $tc): ?>
+                                <tr>
+                                    <td><span
+                                            class="fw-bold small text-uppercase"><?= htmlspecialchars($tc['nome']) ?></span>
+                                    </td>
+                                    <td class="text-center"><span
+                                            class="badge bg-green rounded-pill px-3"><?= $tc['visitas'] ?></span></td>
+                                    <td class="text-center fw-bold text-primary"><?= $tc['pax'] ?></td>
+                                </tr>
                             <?php endforeach; ?>
                         </tbody>
                     </table>
@@ -234,64 +167,129 @@ $larguraCanvas = count($timelineData) > 31 ? (count($timelineData) * 40) . 'px' 
             </div>
         </div>
 
-        <!-- 4. DISTRIBUIÇÃO SEMANAL -->
-        <div class="col-lg-4">
-            <div class="chart-container h-100">
-                <h6 class="fw-800 mb-4">Volume por Dia da Semana</h6>
-                <div style="height: 300px;">
-                    <canvas id="weekChart"></canvas>
+        <!-- RANKING EQUIPE (EM CARDS) -->
+        <div class="col-md-5">
+            <div class="card border-0 shadow-sm p-4 h-100">
+                <h6 class="fw-bold mb-4 text-dark border-bottom pb-2"><i
+                        class="fas fa-user-tie text-primary me-2"></i>Produtividade da Equipe</h6>
+                <div class="row g-2">
+                    <?php foreach ($equipe as $u): ?>
+                        <div class="col-12">
+                            <div
+                                class="p-3 bg-white rounded border-start border-primary border-3 shadow-xs d-flex justify-content-between align-items-center mb-1">
+                                <div>
+                                    <div class="fw-bold small text-dark"><?= strtoupper($u['nome']) ?></div>
+                                    <small class="text-muted" style="font-size: 0.65rem;">Reserva Efetuada</small>
+                                </div>
+                                <div class="text-end">
+                                    <h4 class="m-0 fw-900 text-primary"><?= $u['qtd'] ?></h4>
+                                    <small class="fw-bold text-muted" style="font-size: 0.5rem;">TOTAL</small>
+                                </div>
+                            </div>
+                        </div>
+                    <?php endforeach; ?>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 3. GRÁFICOS (FUNDO - POWER BI STYLE) -->
+    <div class="row g-4">
+        <!-- GRÁFICO GRANDE DE BARRAS -->
+        <div class="col-md-8">
+            <div class="card border-0 shadow-sm p-4">
+                <h6 class="fw-bold mb-3"><i class="fas fa-chart-bar text-primary me-2"></i>Tendência Diária: Reservas
+                    vs. Fila</h6>
+                <div style="position: relative; height: 350px;">
+                    <canvas id="chartEvolucao"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- GRÁFICO DONUT -->
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm p-4">
+                <h6 class="fw-bold mb-3 text-center">Perfil de Grupos (Pax)</h6>
+                <div style="position: relative; height: 350px;">
+                    <canvas id="chartFaixas"></canvas>
                 </div>
             </div>
         </div>
     </div>
 </div>
 
+<style>
+    .fw-900 {
+        font-weight: 900;
+    }
+
+    .card {
+        border-radius: 15px;
+        transition: 0.3s;
+    }
+
+    .card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 12px 20px rgba(0, 0, 0, 0.08) !important;
+    }
+
+    .w-fit {
+        width: fit-content;
+    }
+
+    .shadow-xs {
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
+    }
+</style>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-    // Gráfico de Palitos (Evolução Diária)
-    new Chart(document.getElementById('paxChart'), {
+    // GRÁFICO DE PALITOS (BARRA)
+    new Chart(document.getElementById('chartEvolucao'), {
         type: 'bar',
         data: {
-            labels: <?= json_encode(array_keys($timelineData)) ?>,
-            datasets: [{
-                label: 'Total de Pessoas',
-                data: <?= json_encode(array_column($timelineData, 'pax')) ?>,
-                backgroundColor: '#4f46e5',
-                borderRadius: 4,
-                hoverBackgroundColor: '#4338ca'
-            }]
+            labels: <?= json_encode($labels) ?>,
+            datasets: [
+                {
+                    label: 'Reservas',
+                    data: <?= json_encode($dataset_res) ?>,
+                    backgroundColor: '#0d6efd',
+                    borderRadius: 5
+                },
+                {
+                    label: 'Fila (Sentados)',
+                    data: <?= json_encode($dataset_fila) ?>,
+                    backgroundColor: '#34c759',
+                    borderRadius: 5
+                }
+            ]
         },
         options: {
+            responsive: true,
             maintainAspectRatio: false,
-            plugins: { legend: { display: false } },
+            plugins: { legend: { position: 'bottom' } },
             scales: {
                 x: { grid: { display: false } },
-                y: { beginAtZero: true, grid: { borderDash: [2, 2] } }
+                y: { beginAtZero: true, grid: { color: '#f0f0f0' } }
             }
         }
     });
 
-    // Gráfico Semanal
-    new Chart(document.getElementById('weekChart'), {
-        type: 'bar',
+    // GRÁFICO PERFIL GRUPOS (DONUT)
+    new Chart(document.getElementById('chartFaixas'), {
+        type: 'doughnut',
         data: {
-            labels: <?= json_encode(array_keys($graficos['dias_semana'])) ?>,
+            labels: ['5-6', '7-8', '10-15', '15-20', '20+'],
             datasets: [{
-                data: <?= json_encode(array_values($graficos['dias_semana'])) ?>,
-                backgroundColor: '#10b981',
-                borderRadius: 6
+                data: [<?= (int) $faixas['f5_6'] ?>, <?= (int) $faixas['f7_8'] ?>, <?= (int) $faixas['f10_15'] ?>, <?= (int) $faixas['f15_20'] ?>, <?= (int) $faixas['f20_mais'] ?>],
+                backgroundColor: ['#0d6efd', '#6610f2', '#fd7e14', '#dc3545', '#198754'],
+                borderWidth: 0
             }]
         },
         options: {
-            indexAxis: 'y',
             maintainAspectRatio: false,
-            plugins: { legend: { display: false } },
-            scales: {
-                x: { beginAtZero: true, grid: { display: false } },
-                y: { grid: { display: false } }
-            }
+            cutout: '75%',
+            plugins: { legend: { position: 'bottom' } }
         }
     });
 </script>
-
-</body>
-</html>

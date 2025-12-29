@@ -2,184 +2,128 @@
 session_start();
 require 'config.php';
 
-// Verifica se os dados do formulário foram enviados
 if (!empty($_POST['email'])) {
     $email = addslashes($_POST['email']);
     $senha = md5(addslashes($_POST['senha']));
 
-    // Prepara e executa a consulta SQL
-    $sql = $pdo->prepare("SELECT * FROM login WHERE email = :email AND senha = :senha");
+    $sql = $pdo->prepare("
+        SELECT l.*, e.nome_empresa, e.status as empresa_status, e.data_expiracao 
+        FROM login l
+        INNER JOIN empresas e ON e.id = l.empresa_id
+        WHERE l.email = :email AND l.senha = :senha
+    ");
     $sql->bindValue(":email", $email);
     $sql->bindValue(":senha", $senha);
     $sql->execute();
 
-    // Verifica se a consulta retornou algum resultado
     if ($sql->rowCount() > 0) {
         $usuario = $sql->fetch();
-        $_SESSION['mmnlogin'] = $usuario['id'];
-        header("Location: index.php");
-        exit;
+        $hoje = new DateTime();
+        $expiracao = new DateTime($usuario['data_expiracao']);
+
+        if ($usuario['empresa_status'] == 0) {
+            $erro = "Sua empresa está desativada. Contate o suporte.";
+        } 
+        elseif ($hoje > $expiracao) {
+            $erro = "Sua licença expirou em " . $expiracao->format('d/m/Y');
+        } 
+        else {
+            $_SESSION['mmnlogin'] = $usuario['id'];
+            $_SESSION['empresa_id'] = $usuario['empresa_id'];
+            $_SESSION['nome_empresa'] = $usuario['nome_empresa'];
+            $_SESSION['nivel'] = $usuario['nivel'];
+            header("Location: index.php");
+            exit;
+        }
     } else {
-        $erro = "Usuário ou senha incorretos.";
+        $erro = "E-mail ou senha incorretos.";
     }
 }
-
-require 'cabecalho.php';
 ?>
-
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login</title>
-    <!-- Bootstrap CSS -->
+    <title>Login - Sistema de Reservas</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-</head>
-<body>
-    <div class="modal-dialog" role="document">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Login</h5>
-            </div>
-            <div class="modal-body">
-                <form method="POST">
-                    <div class="form-group">
-                        <label for="email">E-mail:</label>
-                        <input 
-                            class="form-control" 
-                            type="email" 
-                            id="email" 
-                            name="email" 
-                            placeholder="Digite seu e-mail." 
-                            autofocus 
-                            required 
-                        />
-                    </div>
-                    <div class="form-group mt-3">
-                        <label for="senha">Senha:</label>
-                        <input 
-                            class="form-control" 
-                            type="password" 
-                            id="senha" 
-                            name="senha" 
-                            placeholder="Digite sua senha." 
-                            required 
-                        />
-                    </div>
-                    <div class="form-group mt-4">
-                        <input class="btn btn-secondary btn-lg w-100" type="submit" value="Entrar" />
-                    </div>
-                    <div class="form-group mt-2">
-                        <a class="btn btn-secondary btn-lg w-100" href="senhaentrar.php">Cadastrar</a>
-                    </div>
-                </form>
-                <?php if (isset($erro)): ?>
-                    <div class="alert alert-danger mt-3" role="alert">
-                        <?= htmlspecialchars($erro); ?>
-                    </div>
-                <?php endif; ?>
-            </div>
-        </div>
-    </div>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
-        body {
-            font-family: 'Poppins', Arial, sans-serif;
-            background-color: #f9f9f9;
-            margin: 20px;
-            padding: 0;
+        body { 
+            background: linear-gradient(135deg, #1e1e2d 0%, #2c2c44 100%); 
+            font-family: 'Inter', sans-serif;
+            display: flex; align-items: center; justify-content: center; 
+            min-height: 100vh; margin: 0; padding: 15px;
         }
-
-        .modal-dialog {
-            max-width: 400px;
-            margin: 50px auto;
+        .login-card { 
+            width: 100%; 
+            max-width: 350px; /* Largura máxima em desktops */
+            padding: 25px; 
+            background: white; border-radius: 16px; 
+            box-shadow: 0 15px 35px rgba(0,0,0,0.3); 
         }
-
-        .modal-content {
-            margin-top: 100px;
-            border-radius: 15px;
-            box-shadow: 0px 10px 30px #333;
-            border: none;
-            overflow: hidden;
+        .logo-container { text-align: center; margin-bottom: 15px; }
+        .logo-container img { width: 100%; max-width: 160px; height: auto; }
+        
+        h5 { color: #3f4254; font-weight: 700; margin-bottom: 15px; font-size: 1.1rem; }
+        
+        .form-label { margin-bottom: 3px; font-size: 0.7rem; color: #6c757d; letter-spacing: 0.5px; }
+        
+        .form-control { 
+            padding: 10px 12px; border-radius: 8px; border: 1px solid #e1e3ea; 
+            background-color: #f3f6f9; font-size: 0.9rem; transition: 0.3s;
         }
-
-        .modal-header {
-            background-color: #333;
-            color: white;
-            text-align: center;
-            padding: 20px;
-            border-bottom: none;
+        .form-control:focus { 
+            box-shadow: 0 0 0 3px rgba(54, 153, 255, 0.15); 
+            border-color: #3699ff; background-color: #fff;
         }
-
-        .modal-title {
-            font-size: 1.5rem;
-            font-weight: 600;
+        
+        .btn-primary { 
+            background-color: #3699ff; border: none; padding: 10px; 
+            font-weight: 700; border-radius: 8px; transition: 0.3s;
+            font-size: 0.9rem; margin-top: 10px;
         }
+        
+        .alert { border-radius: 8px; font-size: 0.8rem; padding: 8px; margin-top: 12px; }
+        .footer-link { font-size: 0.75rem; margin-top: 15px; text-align: center; }
 
-        .modal-body {
-            padding: 30px;
-            background-color: #ffffff;
-        }
-
-        .form-group label {
-            font-weight: 500;
-            color: #555;
-        }
-
-        .form-control {
-            border: 1px solid #ddd;
-            border-radius: 8px;
-            padding: 12px;
-            font-size: 1rem;
-            color: #333;
-            background-color: #f9f9f9;
-            transition: all 0.3s ease;
-        }
-
-        .form-control:focus {
-            border-color: #555;
-            box-shadow: 0 0 5px #555;
-            outline: none;
-        }
-
-        .btn {
-            background-color: #555;
-            color: white;
-            border: none;
-            border-radius: 8px;
-            padding: 12px 20px;
-            font-size: 1rem;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s ease;
-        }
-
-        .btn:hover {
-            box-shadow: 0 5px 15px #555;
-            transform: translateY(-2px);
-        }
-
-        .btn:active {
-            transform: translateY(1px);
-            box-shadow: 0 3px 7px rgba(108, 99, 255, 0.2);
-        }
-
-        .alert {
-            font-size: 0.9rem;
-            font-weight: 500;
-            border-radius: 8px;
-            margin-top: 15px;
-            padding: 10px;
-        }
-
-        .alert-danger {
-            background-color: #ffdddd;
-            color: #d9534f;
-            border: 1px solid #f5c6cb;
+        /* Ajustes para telas muito pequenas (iPhone SE, etc) */
+        @media (max-width: 380px) {
+            .login-card { padding: 20px; }
+            .logo-container img { max-width: 130px; }
+            h5 { font-size: 1rem; }
         }
     </style>
+</head>
+<body>
+    <div class="login-card">
+        <div class="logo-container">
+            <img src="rossetto33.png" alt="Logo">
+        </div>
+        
+        <h5 class="text-center">Bem-vindo</h5>
+        
+        <form method="POST">
+            <div class="mb-2">
+                <label class="form-label fw-bold text-uppercase">E-mail</label>
+                <input type="email" name="email" class="form-control" placeholder="seu@email.com" required autofocus>
+            </div>
+            <div class="mb-3">
+                <label class="form-label fw-bold text-uppercase">Senha</label>
+                <input type="password" name="senha" class="form-control" placeholder="••••••••" required>
+            </div>
+            
+            <button type="submit" class="btn btn-primary w-100 shadow-sm">ENTRAR NO PAINEL</button>
+            
+            <div class="footer-link">
+                <span class="text-muted">Não tem conta?</span> 
+                <a href="cadastrar_empresa.php" class="text-decoration-none text-primary fw-bold">Teste Grátis</a>
+            </div>
+        </form>
 
-    <!-- Bootstrap JS -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+        <?php if(!empty($erro)): ?>
+            <div class="alert alert-danger text-center"><?php echo $erro; ?></div>
+        <?php endif; ?>
+    </div>
 </body>
 </html>
